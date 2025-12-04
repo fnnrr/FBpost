@@ -724,7 +724,7 @@ const App: React.FC = () => {
       {/* Footer for Privacy Policy and Terms of Service */}
       <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200 flex justify-center space-x-4">
         <a
-          href="/privacy-policy.html"
+          href="/privacy-policy/"
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:underline"
@@ -733,7 +733,7 @@ const App: React.FC = () => {
           Privacy Policy
         </a>
         <a
-          href="/terms-of-service.html" // Link to the new static HTML file
+          href="/terms-of-service/" 
           target="_blank"
           rel="noopener noreferrer"
           className="text-blue-600 hover:underline"
