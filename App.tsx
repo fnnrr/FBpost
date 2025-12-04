@@ -3,8 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import MessageBubble from './components/MessageBubble';
 import ImageUpload from './components/ImageUpload';
 import ThemeSelector from './components/ThemeSelector';
-import PrivacyPolicy from './components/PrivacyPolicy'; // Re-import
-import TermsOfService from './components/TermsOfService'; // Re-import
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 import {
   generateTextContent,
   // generateImage, // Removed for free API only
@@ -20,8 +20,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false); // Indicates content generation is happening
   const [isPosting, setIsPosting] = useState<boolean>(false); // Indicates "post now" simulation is happening
   const [currentFeature, setCurrentFeature] = useState<BotFeature>(BotFeature.CHAT);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false); // Re-add state
-  const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false); // Re-add state
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false);
+  const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false);
 
   // States for specific features
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -74,6 +74,21 @@ const App: React.FC = () => {
       console.error("Failed to save scheduled posts to localStorage", e);
     }
   }, [scheduledPosts]);
+
+  // Handle URL parameters for displaying modals on initial load
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('show') === 'privacy') {
+      setShowPrivacyPolicy(true);
+    } else if (params.get('show') === 'terms') {
+      setShowTermsOfService(true);
+    }
+    // Optionally clear the URL parameter after showing the modal to keep URL clean
+    // This is a UX choice. If you want the URL to persist for sharing, skip this.
+    if (window.location.search.includes('?show=')) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
 
   const addMessage = useCallback((message: Message) => {
@@ -723,20 +738,20 @@ const App: React.FC = () => {
 
       {/* Footer for Privacy Policy and Terms of Service */}
       <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200 flex justify-center space-x-4">
-        <button
-          onClick={() => setShowPrivacyPolicy(true)}
+        <a
+          href="/?show=privacy"
           className="text-blue-600 hover:underline"
           aria-label="Open Privacy Policy"
         >
           Privacy Policy
-        </button>
-        <button
-          onClick={() => setShowTermsOfService(true)}
+        </a>
+        <a
+          href="/?show=terms"
           className="text-blue-600 hover:underline"
           aria-label="Open Terms of Service"
         >
           Terms of Service
-        </button>
+        </a>
       </div>
 
       {/* Privacy Policy Modal */}
