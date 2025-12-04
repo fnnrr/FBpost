@@ -48,12 +48,12 @@ async function connectToDatabase(): Promise<Db> {
  * Handles both GET (verification) and POST (incoming messages) requests.
  */
 const handler: Handler = async (event, context: Context) => {
-  // Basic check for essential environment variables
-  if (!GEMINI_API_KEY || !FB_VERIFY_TOKEN || !FB_PAGE_ACCESS_TOKEN || !MONGODB_URI) {
-    console.error('Missing required environment variables for bot operation.');
+  // Essential check for FB_VERIFY_TOKEN, required for both GET and POST requests
+  if (!FB_VERIFY_TOKEN) {
+    console.error('FB_VERIFY_TOKEN is missing in environment variables. Webhook cannot operate.');
     return {
       statusCode: 500,
-      body: JSON.stringify({ message: 'Missing required environment variables for bot operation.' }),
+      body: JSON.stringify({ message: 'FB_VERIFY_TOKEN is not configured.' }),
     };
   }
 
@@ -78,6 +78,15 @@ const handler: Handler = async (event, context: Context) => {
 
   // --- 2. Handle Incoming Messages (POST request from Facebook) ---
   if (event.httpMethod === 'POST') {
+    // For POST requests, all other critical environment variables are needed.
+    if (!GEMINI_API_KEY || !FB_PAGE_ACCESS_TOKEN || !MONGODB_URI) {
+      console.error('Missing required environment variables for POST message handling.');
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ message: 'Missing required environment variables for POST message handling.' }),
+      };
+    }
+
     let body;
     try {
       body = JSON.parse(event.body || '{}');
