@@ -2,7 +2,7 @@ import { Handler, Context, HandlerContext } from '@netlify/functions';
 import { MongoClient, Db } from 'mongodb'; // Import MongoClient and Db types
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_FLASH_MODEL, GEMINI_FLASH_IMAGE_MODEL } from '../../constants'; // Use constants for model names
-import { DailyPostTheme, DailyPostType } from '../../types'; // Import types for Daily Post
+import { DailyPostTheme, DailyPostType, BotFeature } from '../../types'; // Import types for Daily Post and BotFeature
 
 // Environment variables to be set in Netlify dashboard (Site settings -> Build & deploy -> Environment variables):
 // MONGODB_URI: Your MongoDB connection string (e.g., from MongoDB Atlas)
@@ -158,6 +158,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
             let botResponseText = 'Oops! I received your message but could not process it.';
             let botImageUrl: string | undefined;
             // let botVideoUrl: string | undefined; // Video generation is not currently enabled in frontend or backend
+            let sendQuickReplies = false;
 
             if (messageText) {
                 const lowerCaseText = messageText.toLowerCase();
@@ -201,6 +202,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   });
                   console.log('Gemini API returned text response.');
                   botResponseText = `Daily Post (${theme} - ${type.replace('_', ' ')}):\n\n${geminiResponse.text || 'Could not generate post.'}`;
+                  sendQuickReplies = true; // Offer quick replies after a feature interaction
 
                 } else if (lowerCaseText.startsWith('edit this image:') && messageAttachments?.length > 0) {
                   console.log('Detected Image Edit command.');
@@ -212,8 +214,6 @@ const handler: Handler = async (event, context: HandlerContext) => {
                         botResponseText = "Please tell me how you want to edit the image after 'edit this image:'.";
                     } else {
                         botResponseText = `Editing your image with prompt: "${editPrompt}"... This might take a moment.`;
-                        // Send initial thinking message, but be careful not to trigger another timeout
-                        // await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN); // Removed to avoid potential cascading timeout
 
                         try {
                             const base64ImageData = await fetchAndBase64Encode(attachment.payload.url, attachment.mimeType || 'image/jpeg');
@@ -254,41 +254,55 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   } else {
                     botResponseText = "To edit an image, please send an image attachment with your 'edit this image:' command.";
                   }
-                } else if (lowerCaseText.startsWith('schedule post')) {
-                  console.log('Detected Schedule Post command.');
-                  // This feature is more complex as it requires a persistent scheduler
-                  // and possibly user input for time. For now, it's a placeholder.
-                  botResponseText = "Scheduling posts is not fully implemented in the backend yet. You can use the frontend app to simulate scheduling. In the future, I will be able to schedule posts to your social media.";
-                } else {
-                  console.log('Detected general chat message, calling Gemini API...');
-                  // Default chat response using Gemini. Also provide guidance.
-                  const guidance = `\n\nI can:
-  - Generate a post/story/reel: Try "Post [theme] story" (e.g., "Post sad story"), "Generate a funny regular post", or "daily post inspirational reel".
-  - Edit an image: Type "Edit this image: [your prompt]" and attach an image.`;
+                  sendQuickReplies = true; // Offer quick replies after a feature interaction
 
+                } else if (lowerCaseText.includes('schedule post') || lowerCaseText.includes(BotFeature.SCHEDULE_POST.replace('_', ' '))) {
+                  console.log('Detected Schedule Post command in Messenger.');
+                  botResponseText = "The 'Schedule Post' feature is managed in the web application (your browser). You can generate content here, then use the web app to schedule it! Feel free to ask me to 'Post inspirational story' or 'Edit this image' with an attachment.";
+                  sendQuickReplies = true; // Offer quick replies
+                } else if (lowerCaseText === BotFeature.CHAT.replace('_', ' ')) {
+                  // If user clicked 'Chat & Story' quick reply, just give a general prompt
+                  botResponseText = "Okay, let's chat! What's on your mind or what kind of story would you like?";
+                  sendQuickReplies = true;
+                } else if (lowerCaseText === BotFeature.DAILY_POST.replace('_', ' ')) {
+                  botResponseText = "What kind of daily post would you like? Try 'Post funny story' or 'Generate a sad regular post'.";
+                  sendQuickReplies = true;
+                } else if (lowerCaseText === BotFeature.EDIT_IMAGE.replace('_', ' ')) {
+                  botResponseText = "Please send me an image with your editing request, for example: 'Edit this image: add a hat'.";
+                  sendQuickReplies = true;
+                }
+                else {
+                  console.log('Detected general chat message, calling Gemini API...');
+                  // Default chat response using Gemini.
                   const geminiResponse = await ai.models.generateContent({
                       model: GEMINI_FLASH_MODEL,
-                      contents: `The user said: "${messageText}". Respond in the style of a helpful social media assistant, suggesting creative post or story ideas, or offering to help with image/video generation based on their query. Keep your response concise, as I will append some usage instructions.`,
+                      contents: `The user said: "${messageText}". Respond in the style of a helpful social media assistant, suggesting creative post or story ideas, or offering to help with image/video generation based on their query. Keep your response concise.`,
                   });
                   console.log('Gemini API returned general chat response.');
-                  botResponseText = (geminiResponse.text || 'How can I assist you?') + guidance;
+                  botResponseText = (geminiResponse.text || 'How can I assist you?');
+                  sendQuickReplies = true; // Always send quick replies for general chat
                 }
             } else if (messageAttachments && messageAttachments.length > 0) {
               console.log('Received attachment without specific text command.');
               // Generic handling for attachments without a specific command
-              botResponseText = "I received an attachment! To edit an image, please use the format 'edit this image: [your prompt]' and attach the image.";
+              botResponseText = "I received an attachment! To edit an image, please use the format 'Edit this image: [your prompt]' and attach the image. Or choose an option below:";
+              sendQuickReplies = true; // Offer quick replies
+            } else {
+              // No message text or attachments, likely a greeting or initial contact
+              botResponseText = "Hello! I'm your Gemini-powered social media assistant. How can I help you today?";
+              sendQuickReplies = true; // Always send quick replies for initial contact
             }
 
             // --- Send Response back to Messenger ---
             console.log('Attempting to send Messenger reply...');
-            await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN, botImageUrl); // Pass botImageUrl here
+            await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN, botImageUrl, undefined, sendQuickReplies); // Pass sendQuickReplies here
             console.log('Messenger reply sent.');
 
           } catch (error: any) {
             console.error(`Error processing Messenger event for ${senderId} or interacting with DB/Gemini:`, error);
             // Attempt to send an error message back to the user
             try {
-                await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN);
+                await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN, undefined, undefined, true); // Send quick replies even on error
             } catch (sendError) {
                 console.error('Failed to send error message back to user:', sendError);
             }
@@ -314,13 +328,15 @@ const handler: Handler = async (event, context: HandlerContext) => {
  * @param token The Facebook Page Access Token.
  * @param imageUrl Optional URL for an image attachment.
  * @param videoUrl Optional URL for a video attachment.
+ * @param includeQuickReplies Whether to include Quick Replies in the response.
  */
 async function sendMessengerMessage(
   recipientId: string,
   text: string,
   token: string,
   imageUrl?: string,
-  videoUrl?: string
+  videoUrl?: string,
+  includeQuickReplies: boolean = false
 ) {
   if (!token) {
     console.error('Facebook Page Access Token is not set for sending message. Cannot send reply.');
@@ -328,19 +344,18 @@ async function sendMessengerMessage(
   }
 
   let messagePayload: any = { recipient: { id: recipientId } };
+  let messageContent: any = { text: text };
 
   if (imageUrl) {
     // Messenger API requires a URL for image attachments.
     // If botImageUrl is a data URI, we need to upload it first or use an external service.
-    // For simplicity, let's assume direct URL or a workaround for data URIs if necessary.
-    // A data URI cannot be directly used here. A proper solution would upload the image to a CDN
-    // or Facebook's attachment API first, then use the returned URL.
     // For this example, we'll log a warning and send text if it's a data URI.
     if (imageUrl.startsWith('data:')) {
-      console.warn('Cannot send data URI directly as Messenger image attachment. Sending as text message with image URL (if supported by client).');
-      messagePayload.message = { text: `${text}\n\n[Image could not be sent directly via Messenger API as data URI. Here's the data URI for reference: ${imageUrl.substring(0, 100)}...]` };
+      console.warn('Cannot send data URI directly as Messenger image attachment. Sending as text message with a note.');
+      messageContent.text = `${text}\n\n(Note: The edited image could not be sent directly in Messenger as it's a data URI. Please use the web app for a better experience.)`;
+      // We don't attach anything if it's a data URI
     } else {
-      messagePayload.message = {
+      messageContent = {
         attachment: {
           type: 'image',
           payload: { url: imageUrl, is_reusable: true } // is_reusable: true allows reusing the attachment ID
@@ -350,19 +365,29 @@ async function sendMessengerMessage(
   } else if (videoUrl) {
     // Similar considerations for video URLs.
     if (videoUrl.startsWith('data:')) {
-      console.warn('Cannot send data URI directly as Messenger video attachment. Sending as text message with video URL.');
-      messagePayload.message = { text: `${text}\n\n[Video could not be sent directly via Messenger API as data URI. Here's the data URI for reference: ${videoUrl.substring(0, 100)}...]` };
+      console.warn('Cannot send data URI directly as Messenger video attachment. Sending as text message with a note.');
+      messageContent.text = `${text}\n\n(Note: The generated video could not be sent directly in Messenger as it's a data URI. Please use the web app for a better experience.)`;
     } else {
-      messagePayload.message = {
+      messageContent = {
         attachment: {
           type: 'video',
           payload: { url: videoUrl, is_reusable: true }
         }
       };
     }
-  } else {
-    messagePayload.message = { text: text };
   }
+
+  // Add quick replies if requested
+  if (includeQuickReplies) {
+    messageContent.quick_replies = [
+      { content_type: 'text', title: '💬 Chat & Story', payload: BotFeature.CHAT },
+      { content_type: 'text', title: '✂️ Edit Image', payload: BotFeature.EDIT_IMAGE },
+      { content_type: 'text', title: '🗓️ Daily Post', payload: BotFeature.DAILY_POST },
+      { content_type: 'text', title: '⏰ Schedule Post', payload: BotFeature.SCHEDULE_POST },
+    ];
+  }
+  messagePayload.message = messageContent;
+
 
   try {
     const response = await fetch(`https://graph.facebook.com/v19.0/me/messages?access_token=${token}`, {
