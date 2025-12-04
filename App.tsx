@@ -688,7 +688,6 @@ const App: React.FC = () => {
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}
               disabled:opacity-50 disabled:cursor-not-allowed`}
-            disabled={isLoading || isPosting}
             title={feature.description}
             aria-label={feature.name}
             role="button"
@@ -720,7 +719,7 @@ const App: React.FC = () => {
 
       {/* Footer for Privacy Policy */}
       <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200">
-        <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
+        <a href="/privacy-policy/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
       </div>
     </div>
   );
