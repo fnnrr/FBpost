@@ -1,14 +1,9 @@
-
-
 import { GoogleGenAI, GenerateContentResponse } from '@google/genai';
 import {
   GEMINI_FLASH_MODEL,
   GEMINI_FLASH_IMAGE_MODEL,
-  // GEMINI_PRO_IMAGE_MODEL, // Removed for free API only
-  // VEO_FAST_GENERATE_MODEL, // Removed for free API only
-  // BILLING_DOCS_URL, // Removed for free API only
 } from '../constants';
-import { /* ImageSize, VideoAspectRatio, */ GroundingUrl } from '../types';
+import { GroundingUrl } from '../types';
 
 // Utility function to convert File to base64
 async function fileToBase64(file: File): Promise<string> {
@@ -42,42 +37,17 @@ function getGroundingUrls(response: GenerateContentResponse): GroundingUrl[] | u
     if (chunk.web?.uri) {
       urls.push({ uri: chunk.web.uri, title: chunk.web.title });
     }
-    // Fix: Add explicit check for `chunk.maps`.
     if (chunk.maps) {
       if (chunk.maps.uri) {
         urls.push({ uri: chunk.maps.uri, title: chunk.maps.title });
       }
-      // The `reviewSnippets` within `placeAnswerSources` are textual content
-      // and do not contain `uri` or `title` properties directly according to
-      // the `@google/genai` type definitions.
-      // The guideline "This includes groundingChunks.maps.placeAnswerSources.reviewSnippets"
-      // refers to the review content contributing to grounding, not that each snippet
-      // itself has a separate URL to extract for display.
-      // Therefore, the loop attempting to extract `snippet.uri` and `snippet.title` is removed.
     }
   }
   return urls.length > 0 ? urls : undefined;
 }
 
-// Removed checkAndPromptApiKey as paid models requiring it are no longer used
-// export const checkAndPromptApiKey = async (): Promise<boolean> => {
-//   if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function' && typeof window.aistudio.openSelectKey === 'function') {
-//     const hasKey = await window.aistudio.hasSelectedApiKey();
-//     if (!hasKey) {
-//       alert(`A paid API key is required for this feature (Veo video generation and Gemini 3 Pro image generation). Please select one from a paid GCP project.`);
-//       await window.aistudio.openSelectKey();
-//       return true;
-//     }
-//     return true;
-//   } else {
-//     console.warn("window.aistudio API not available. Cannot check/prompt for API key.");
-//     return !!process.env.API_KEY;
-//   }
-// };
-
 export const generateTextContent = async (prompt: string, useGoogleSearch: boolean = false): Promise<{ text: string; groundingUrls?: GroundingUrl[]; }> => {
   try {
-    // API key is always expected from process.env.API_KEY or via AI Studio runtime, no need for upfront checks for free models.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const config: any = {};
     if (useGoogleSearch) {
@@ -98,51 +68,9 @@ export const generateTextContent = async (prompt: string, useGoogleSearch: boole
   }
 };
 
-// Removed generateImage as it used a paid model
-// export const generateImage = async (prompt: string, imageSize: ImageSize): Promise<string> => {
-//   const apiKeyAvailable = await checkAndPromptApiKey();
-//   if (!apiKeyAvailable) {
-//     throw new Error('API key not selected. Please select a paid API key.');
-//   }
-
-//   try {
-//     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-//     const response = await ai.models.generateContent({
-//       model: GEMINI_PRO_IMAGE_MODEL,
-//       contents: {
-//         parts: [
-//           {
-//             text: prompt,
-//           },
-//         ],
-//       },
-//       config: {
-//         imageConfig: {
-//           aspectRatio: '1:1',
-//           imageSize: imageSize,
-//         },
-//       },
-//     });
-
-//     for (const part of response.candidates?.[0]?.content?.parts || []) {
-//       if (part.inlineData?.data && part.inlineData.mimeType) {
-//         return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
-//       }
-//     }
-//     throw new Error('No image part found in the response.');
-//   } catch (error: any) {
-//     console.error('Error generating image:', error);
-//     if (error.message.includes("Requested entity was not found.")) {
-//       throw new Error(`API key might be invalid or not from a paid project. Please select a valid key. See billing info: ${BILLING_DOCS_URL}`);
-//     }
-//     throw new Error(`Failed to generate image: ${error.message || 'Unknown error'}`);
-//   }
-// };
-
 export const editImage = async (imageFile: File, prompt: string): Promise<string> => {
   try {
     const base64ImageData = await fileToBase64(imageFile);
-    // API key is always expected from process.env.API_KEY or via AI Studio runtime.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: GEMINI_FLASH_IMAGE_MODEL,
@@ -172,54 +100,3 @@ export const editImage = async (imageFile: File, prompt: string): Promise<string
     throw new Error(`Failed to edit image: ${error.message || 'Unknown error'}`);
   }
 };
-
-// Removed generateVideo as it used a paid model
-// export const generateVideo = async (imageFile: File | null, prompt: string | null, aspectRatio: VideoAspectRatio): Promise<string> => {
-//   const apiKeyAvailable = await checkAndPromptApiKey();
-//   if (!apiKeyAvailable) {
-//     throw new Error('API key not selected. Please select a paid API key.');
-//   }
-
-//   try {
-//     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-//     let payload: any = {
-//       model: VEO_FAST_GENERATE_MODEL,
-//       config: {
-//         numberOfVideos: 1,
-//         resolution: '720p',
-//         aspectRatio: aspectRatio,
-//       },
-//     };
-
-//     if (prompt) {
-//       payload.prompt = prompt;
-//     }
-//     if (imageFile) {
-//       const base64ImageData = await fileToBase64(imageFile);
-//       payload.image = {
-//         imageBytes: base64ImageData,
-//         mimeType: imageFile.type,
-//       };
-//     }
-
-//     let operation = await ai.models.generateVideos(payload);
-
-//     while (!operation.done) {
-//       await new Promise((resolve) => setTimeout(resolve, 10000));
-//       operation = await ai.operations.getVideosOperation({ operation: operation });
-//     }
-
-//     const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
-//     if (downloadLink) {
-//       return `${downloadLink}&key=${process.env.API_KEY}`;
-//     } else {
-//       throw new Error('No video URI found in the response.');
-//     }
-//   } catch (error: any) {
-//     console.error('Error generating video:', error);
-//     if (error.message.includes("Requested entity was not found.")) {
-//       throw new Error(`API key might be invalid or not from a paid project. Please select a valid key. See billing info: ${BILLING_DOCS_URL}`);
-//     }
-//     throw new Error(`Failed to generate video: ${error.message || 'Unknown error'}`);
-//   }
-// };
