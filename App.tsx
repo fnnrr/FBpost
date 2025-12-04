@@ -3,8 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import MessageBubble from './components/MessageBubble';
 import ImageUpload from './components/ImageUpload';
 import ThemeSelector from './components/ThemeSelector';
-// import PrivacyPolicy from './components/PrivacyPolicy'; // Removed
-// import TermsOfService from './components/TermsOfService'; // Removed
+import PrivacyPolicy from './components/PrivacyPolicy'; // Re-import
+import TermsOfService from './components/TermsOfService'; // Re-import
 import {
   generateTextContent,
   // generateImage, // Removed for free API only
@@ -20,8 +20,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false); // Indicates content generation is happening
   const [isPosting, setIsPosting] = useState<boolean>(false); // Indicates "post now" simulation is happening
   const [currentFeature, setCurrentFeature] = useState<BotFeature>(BotFeature.CHAT);
-  // const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false); // Removed
-  // const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false); // Removed
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false); // Re-add state
+  const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false); // Re-add state
 
   // States for specific features
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -723,25 +723,45 @@ const App: React.FC = () => {
 
       {/* Footer for Privacy Policy and Terms of Service */}
       <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200 flex justify-center space-x-4">
-        <a
-          href="/privacy-policy/"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => setShowPrivacyPolicy(true)}
           className="text-blue-600 hover:underline"
           aria-label="Open Privacy Policy"
         >
           Privacy Policy
-        </a>
-        <a
-          href="/terms-of-service/" 
-          target="_blank"
-          rel="noopener noreferrer"
+        </button>
+        <button
+          onClick={() => setShowTermsOfService(true)}
           className="text-blue-600 hover:underline"
           aria-label="Open Terms of Service"
         >
           Terms of Service
-        </a>
+        </button>
       </div>
+
+      {/* Privacy Policy Modal */}
+      {showPrivacyPolicy && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="privacy-policy-title"
+        >
+          <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsOfService && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-of-service-title"
+        >
+          <TermsOfService onClose={() => setShowTermsOfService(false)} />
+        </div>
+      )}
     </div>
   );
 };
