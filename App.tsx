@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MessageBubble from './components/MessageBubble';
@@ -5,11 +6,11 @@ import ImageUpload from './components/ImageUpload';
 import ThemeSelector from './components/ThemeSelector';
 import {
   generateTextContent,
-  generateImage,
+  // generateImage, // Removed for free API only
   editImage,
-  generateVideo,
+  // generateVideo, // Removed for free API only
 } from './services/geminiService';
-import { Message, BotFeature, ImageSize, VideoAspectRatio, DailyPostTheme, DailyPostType, ScheduledPost } from './types';
+import { Message, BotFeature, /* ImageSize, VideoAspectRatio, */ DailyPostTheme, DailyPostType, ScheduledPost } from './types';
 import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES } from './constants';
 
 const App: React.FC = () => {
@@ -20,13 +21,13 @@ const App: React.FC = () => {
 
   // States for specific features
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imageSize, setImageSize] = useState<ImageSize>('1K');
-  const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>('16:9');
+  // const [imageSize, setImageSize] = useState<ImageSize>('1K'); // Removed for free API only
+  // const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>('16:9'); // Removed for free API only
   const [dailyPostTheme, setDailyPostTheme] = useState<DailyPostTheme>('inspirational');
   const [dailyPostType, setDailyPostType] = useState<DailyPostType>('story_reel'); // New state for daily post type
 
   // States for Schedule Post feature
-  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]); // Corrected this line
   const [selectedMessageToSchedule, setSelectedMessageToSchedule] = useState<string>(''); // Message ID
   const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
 
@@ -142,31 +143,29 @@ const App: React.FC = () => {
           botResponseContent = { content: text, groundingUrls };
           break;
         }
-        case BotFeature.GENERATE_IMAGE: {
-          botResponseContent.content = `Generating a ${imageSize} image for: "${input}"...`;
-          addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
-          const imageUrl = await generateImage(input, imageSize);
-          botResponseContent = { content: `Here is your generated image for "${input}":`, imageUrl };
-          break;
-        }
+        // case BotFeature.GENERATE_IMAGE: // Removed for free API only
+        //   botResponseContent.content = `Generating a ${imageSize} image for: "${input}"...`;
+        //   addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
+        //   const imageUrl = await generateImage(input, imageSize);
+        //   botResponseContent = { content: `Here is your generated image for "${input}":`, imageUrl };
+        //   break;
         case BotFeature.EDIT_IMAGE: {
           if (!selectedImage) {
             botResponseContent.error = 'Please upload an image to edit.';
             break;
           }
           botResponseContent.content = `Editing your image with: "${input}"... This might take a moment.`;
-          addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
+          addMessage({ id: uuidv4(), role: 'bot', content: botResponseContent.content }); // Ensure content is always provided
           const editedImageUrl = await editImage(selectedImage, input);
           botResponseContent = { content: `Here is your edited image for "${input}":`, imageUrl: editedImageUrl };
           break;
         }
-        case BotFeature.ANIMATE_IMAGE: {
-          botResponseContent.content = `Generating a ${videoAspectRatio} video with${selectedImage ? ' your image and ' : ' '}prompt "${input}"... This can take a few minutes.`;
-          addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
-          const videoUrl = await generateVideo(selectedImage, input, videoAspectRatio);
-          botResponseContent = { content: `Here is your generated video:`, videoUrl };
-          break;
-        }
+        // case BotFeature.ANIMATE_IMAGE: // Removed for free API only
+        //   botResponseContent.content = `Generating a ${videoAspectRatio} video with${selectedImage ? ' your image and ' : ' '}prompt "${input}"... This can take a few minutes.`;
+        //   addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
+        //   const videoUrl = await generateVideo(selectedImage, input, videoAspectRatio);
+        //   botResponseContent = { content: `Here is your generated video:`, videoUrl };
+        //   break;
         case BotFeature.DAILY_POST: {
           let prompt = '';
           if (dailyPostType === 'story_reel') {
@@ -181,10 +180,10 @@ const App: React.FC = () => {
       }
 
       // If no error occurred during feature-specific logic, add the final bot message
-      if (!botResponseContent.error) {
-        addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent });
+      if (!botResponseContent.error && botResponseContent.content !== undefined) { // Check for content explicitly
+        addMessage({ id: uuidv4(), role: 'bot', ...botResponseContent } as Message); // Cast to Message
       } else {
-        addMessage({ id: uuidv4(), role: 'bot', content: 'An error occurred.', error: botResponseContent.error });
+        addMessage({ id: uuidv4(), role: 'bot', content: botResponseContent.error || 'An unexpected error occurred.', error: botResponseContent.error });
       }
     } catch (error: any) {
       console.error('API Error:', error);
@@ -197,12 +196,12 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
       // For image/video features, reset selected image after successful operation
-      if (currentFeature === BotFeature.EDIT_IMAGE || currentFeature === BotFeature.ANIMATE_IMAGE) {
+      if (currentFeature === BotFeature.EDIT_IMAGE /* || currentFeature === BotFeature.ANIMATE_IMAGE */) {
         setSelectedImage(null);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isLoading, currentFeature, selectedImage, imageSize, videoAspectRatio, dailyPostTheme, dailyPostType, selectedMessageToSchedule, scheduledDateTime, messages, addMessage]);
+  }, [input, isLoading, currentFeature, selectedImage, /* imageSize, videoAspectRatio, */ dailyPostTheme, dailyPostType, selectedMessageToSchedule, scheduledDateTime, messages, addMessage]);
 
   const handleClearImage = useCallback(() => {
     setSelectedImage(null);
@@ -219,42 +218,42 @@ const App: React.FC = () => {
 
   const renderFeatureInput = () => {
     switch (currentFeature) {
-      case BotFeature.GENERATE_IMAGE:
-        return (
-          <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-            <label className="text-sm font-medium text-gray-700">Image Size:</label>
-            <div className="flex gap-2">
-              {(['1K', '2K', '4K'] as ImageSize[]).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setImageSize(size)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
-                    imageSize === size ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  } disabled:opacity-50`}
-                  disabled={isLoading}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Describe the image you want to create (e.g., 'A robot riding a skateboard')"
-              className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Generating...' : 'Generate Image'}
-            </button>
-          </div>
-        );
+      // case BotFeature.GENERATE_IMAGE: // Removed for free API only
+      //   return (
+      //     <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
+      //       <label className="text-sm font-medium text-gray-700">Image Size:</label>
+      //       <div className="flex gap-2">
+      //         {(['1K', '2K', '4K'] as ImageSize[]).map((size) => (
+      //           <button
+      //             key={size}
+      //             onClick={() => setImageSize(size)}
+      //             className={`px-3 py-1 rounded-md text-sm font-medium ${
+      //               imageSize === size ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      //             } disabled:opacity-50`}
+      //             disabled={isLoading}
+      //           >
+      //             {size}
+      //           </button>
+      //         ))}
+      //       </div>
+      //       <input
+      //         type="text"
+      //         value={input}
+      //         onChange={(e) => setInput(e.target.value)}
+      //         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+      //         placeholder="Describe the image you want to create (e.g., 'A robot riding a skateboard')"
+      //         className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      //         disabled={isLoading}
+      //       />
+      //       <button
+      //         onClick={handleSendMessage}
+      //         className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+      //         disabled={isLoading}
+      //       >
+      //         {isLoading ? 'Generating...' : 'Generate Image'}
+      //       </button>
+      //     </div>
+      //   );
       case BotFeature.EDIT_IMAGE:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
@@ -281,43 +280,43 @@ const App: React.FC = () => {
             )}
           </div>
         );
-      case BotFeature.ANIMATE_IMAGE:
-        return (
-          <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-            <ImageUpload onImageSelected={setSelectedImage} isLoading={isLoading} clearImage={handleClearImage} />
-            <label className="text-sm font-medium text-gray-700">Aspect Ratio:</label>
-            <div className="flex gap-2">
-              {(['16:9', '9:16'] as VideoAspectRatio[]).map((ratio) => (
-                <button
-                  key={ratio}
-                  onClick={() => setVideoAspectRatio(ratio)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium ${
-                    videoAspectRatio === ratio ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  } disabled:opacity-50`}
-                  disabled={isLoading}
-                >
-                  {ratio}
-                </button>
-              ))}
-            </div>
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Optional: Describe the animation (e.g., 'A cat driving fast')"
-              className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              disabled={isLoading}
-            />
-            <button
-              onClick={handleSendMessage}
-              className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Animating...' : 'Animate Image'}
-            </button>
-          </div>
-        );
+      // case BotFeature.ANIMATE_IMAGE: // Removed for free API only
+      //   return (
+      //     <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
+      //       <ImageUpload onImageSelected={setSelectedImage} isLoading={isLoading} clearImage={handleClearImage} />
+      //       <label className="text-sm font-medium text-gray-700">Aspect Ratio:</label>
+      //       <div className="flex gap-2">
+      //         {(['16:9', '9:16'] as VideoAspectRatio[]).map((ratio) => (
+      //           <button
+      //             key={ratio}
+      //             onClick={() => setVideoAspectRatio(ratio)}
+      //             className={`px-3 py-1 rounded-md text-sm font-medium ${
+      //               videoAspectRatio === ratio ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+      //             } disabled:opacity-50`}
+      //             disabled={isLoading}
+      //           >
+      //             {ratio}
+      //           </button>
+      //         ))}
+      //       </div>
+      //       <input
+      //         type="text"
+      //         value={input}
+      //         onChange={(e) => setInput(e.target.value)}
+      //         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+      //         placeholder="Optional: Describe the animation (e.g., 'A cat driving fast')"
+      //         className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      //         disabled={isLoading}
+      //       />
+      //       <button
+      //         onClick={handleSendMessage}
+      //         className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+      //         disabled={isLoading}
+      //       >
+      //         {isLoading ? 'Animating...' : 'Animate Image'}
+      //       </button>
+      //     </div>
+      //   );
       case BotFeature.DAILY_POST:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">

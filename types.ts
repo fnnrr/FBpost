@@ -17,15 +17,15 @@ export interface GroundingUrl {
 
 export enum BotFeature {
   CHAT = 'chat',
-  GENERATE_IMAGE = 'generate_image',
+  // GENERATE_IMAGE = 'generate_image', // Removed for free API only
   EDIT_IMAGE = 'edit_image',
-  ANIMATE_IMAGE = 'animate_image',
+  // ANIMATE_IMAGE = 'animate_image', // Removed for free API only
   DAILY_POST = 'daily_post',
   SCHEDULE_POST = 'schedule_post', // New feature for scheduling posts
 }
 
-export type ImageSize = '1K' | '2K' | '4K';
-export type VideoAspectRatio = '16:9' | '9:16';
+// export type ImageSize = '1K' | '2K' | '4K'; // Removed for free API only
+// export type VideoAspectRatio = '16:9' | '9:16'; // Removed for free API only
 export type DailyPostTheme = 'inspirational' | 'sad' | 'storytelling' | 'funny';
 export type DailyPostType = 'story_reel' | 'regular_post'; // New type for daily post variations
 
