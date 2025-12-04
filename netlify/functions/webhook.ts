@@ -26,6 +26,7 @@ let cachedDb: Db;
  */
 async function connectToDatabase(): Promise<Db> {
   if (cachedDb) {
+    console.log('Using cached MongoDB connection.');
     return cachedDb;
   }
   if (!MONGODB_URI) {
@@ -33,7 +34,12 @@ async function connectToDatabase(): Promise<Db> {
   }
 
   try {
-    const client = await MongoClient.connect(MONGODB_URI);
+    console.log('Attempting to establish new MongoDB connection...');
+    const client = await MongoClient.connect(MONGODB_URI, {
+      // Add connection options for better resilience and timeout handling
+      connectTimeoutMS: 15000, // 15 seconds connection timeout
+      serverSelectionTimeoutMS: 15000, // 15 seconds server selection timeout
+    });
     const db = client.db(MONGODB_DB_NAME);
     cachedDb = db;
     console.log('Successfully connected to MongoDB.');
@@ -51,6 +57,7 @@ async function connectToDatabase(): Promise<Db> {
  * @returns Base64 encoded string of the image.
  */
 async function fetchAndBase64Encode(url: string, mimeType: string): Promise<string> {
+  console.log(`Fetching and base64 encoding image from URL: ${url}`);
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch image from URL: ${url} (Status: ${response.status})`);
@@ -58,6 +65,7 @@ async function fetchAndBase64Encode(url: string, mimeType: string): Promise<stri
   const arrayBuffer = await response.arrayBuffer();
   // Buffer is globally available in Node.js environments like Netlify Functions
   const base64 = Buffer.from(arrayBuffer).toString('base64');
+  console.log('Image successfully fetched and base64 encoded.');
   return base64;
 }
 
@@ -97,6 +105,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
 
   // --- 2. Handle Incoming Messages (POST request from Facebook) ---
   if (event.httpMethod === 'POST') {
+    console.log('Received POST request, parsing body...');
     // For POST requests, all other critical environment variables are needed.
     if (!API_KEY || !FB_PAGE_ACCESS_TOKEN || !MONGODB_URI) {
       console.error('Missing required environment variables for POST message handling.');
@@ -109,6 +118,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
     let body;
     try {
       body = JSON.parse(event.body || '{}');
+      console.log('Parsed webhook body.');
     } catch (e) {
       console.error('Failed to parse incoming webhook body (invalid JSON):', e);
       return { statusCode: 400, body: 'Invalid JSON payload' };
@@ -117,6 +127,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
     if (body.object === 'page') {
       for (const entry of body.entry) {
         for (const messagingEvent of entry.messaging) {
+          console.log('Processing messaging event:', JSON.stringify(messagingEvent));
           const senderId = messagingEvent.sender.id;
           const messageText = messagingEvent.message?.text;
           const messageAttachments = messagingEvent.message?.attachments; // Handle attachments (e.g., images)
@@ -124,6 +135,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
 
           // Initialize Gemini API client (do this per-request in serverless to ensure latest API key if it changes)
           const ai = new GoogleGenAI({ apiKey: API_KEY });
+          console.log('GoogleGenAI client initialized.');
 
           try {
             // Connect to MongoDB
@@ -131,6 +143,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
             const incomingMessagesCollection = db.collection('incoming_messages'); // Example collection
 
             // Store the incoming message in MongoDB (example usage)
+            console.log('Attempting to insert message into MongoDB...');
             await incomingMessagesCollection.insertOne({
               senderId,
               messageText,
@@ -148,8 +161,10 @@ const handler: Handler = async (event, context: HandlerContext) => {
 
             if (messageText) {
                 const lowerCaseText = messageText.toLowerCase();
+                console.log(`User message text: "${messageText}"`);
 
                 if (lowerCaseText.includes('post') && (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('daily post') || lowerCaseText.includes('generate post'))) {
+                  console.log('Detected Daily Post command.');
                   // This block handles various daily post requests like "Post sad story", "daily post funny", "generate a reel"
                   let theme: DailyPostTheme = 'inspirational'; // Default
                   let type: DailyPostType = 'story_reel'; // Default for social media stories/reels
@@ -177,14 +192,18 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   } else { // regular_post
                     prompt = `Generate a detailed ${theme} themed story or message suitable for a regular social media post. Make it engaging and provide a clear narrative or insightful reflection, around 200-300 words.`;
                   }
+                  console.log(`Generated Gemini prompt for Daily Post: "${prompt}"`);
 
+                  console.log('Calling Gemini API for text content...');
                   const geminiResponse = await ai.models.generateContent({
                     model: GEMINI_FLASH_MODEL,
                     contents: prompt,
                   });
+                  console.log('Gemini API returned text response.');
                   botResponseText = `Daily Post (${theme} - ${type.replace('_', ' ')}):\n\n${geminiResponse.text || 'Could not generate post.'}`;
 
                 } else if (lowerCaseText.startsWith('edit this image:') && messageAttachments?.length > 0) {
+                  console.log('Detected Image Edit command.');
                   // Example: "edit this image: add a hat" (with an attached image)
                   const attachment = messageAttachments[0];
                   if (attachment.type === 'image' && attachment.payload.url) {
@@ -193,10 +212,12 @@ const handler: Handler = async (event, context: HandlerContext) => {
                         botResponseText = "Please tell me how you want to edit the image after 'edit this image:'.";
                     } else {
                         botResponseText = `Editing your image with prompt: "${editPrompt}"... This might take a moment.`;
-                        await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN); // Send initial thinking message
+                        // Send initial thinking message, but be careful not to trigger another timeout
+                        // await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN); // Removed to avoid potential cascading timeout
 
                         try {
                             const base64ImageData = await fetchAndBase64Encode(attachment.payload.url, attachment.mimeType || 'image/jpeg');
+                            console.log('Calling Gemini API for image editing...');
                             const response = await ai.models.generateContent({
                                 model: GEMINI_FLASH_IMAGE_MODEL,
                                 contents: {
@@ -213,6 +234,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
                                     ],
                                 },
                             });
+                            console.log('Gemini API returned image edit response.');
 
                             for (const part of response.candidates?.[0]?.content?.parts || []) {
                                 if (part.inlineData?.data && part.inlineData.mimeType) {
@@ -233,10 +255,12 @@ const handler: Handler = async (event, context: HandlerContext) => {
                     botResponseText = "To edit an image, please send an image attachment with your 'edit this image:' command.";
                   }
                 } else if (lowerCaseText.startsWith('schedule post')) {
+                  console.log('Detected Schedule Post command.');
                   // This feature is more complex as it requires a persistent scheduler
                   // and possibly user input for time. For now, it's a placeholder.
                   botResponseText = "Scheduling posts is not fully implemented in the backend yet. You can use the frontend app to simulate scheduling. In the future, I will be able to schedule posts to your social media.";
                 } else {
+                  console.log('Detected general chat message, calling Gemini API...');
                   // Default chat response using Gemini. Also provide guidance.
                   const guidance = `\n\nI can:
   - Generate a post/story/reel: Try "Post [theme] story" (e.g., "Post sad story"), "Generate a funny regular post", or "daily post inspirational reel".
@@ -246,22 +270,32 @@ const handler: Handler = async (event, context: HandlerContext) => {
                       model: GEMINI_FLASH_MODEL,
                       contents: `The user said: "${messageText}". Respond in the style of a helpful social media assistant, suggesting creative post or story ideas, or offering to help with image/video generation based on their query. Keep your response concise, as I will append some usage instructions.`,
                   });
+                  console.log('Gemini API returned general chat response.');
                   botResponseText = (geminiResponse.text || 'How can I assist you?') + guidance;
                 }
             } else if (messageAttachments && messageAttachments.length > 0) {
+              console.log('Received attachment without specific text command.');
               // Generic handling for attachments without a specific command
               botResponseText = "I received an attachment! To edit an image, please use the format 'edit this image: [your prompt]' and attach the image.";
             }
 
             // --- Send Response back to Messenger ---
+            console.log('Attempting to send Messenger reply...');
             await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN, botImageUrl); // Pass botImageUrl here
+            console.log('Messenger reply sent.');
 
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Error processing Messenger event for ${senderId} or interacting with DB/Gemini:`, error);
-            await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN);
+            // Attempt to send an error message back to the user
+            try {
+                await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN);
+            } catch (sendError) {
+                console.error('Failed to send error message back to user:', sendError);
+            }
           }
         }
       }
+      console.log('All messaging events processed. Sending 200 OK to Facebook.');
       return { statusCode: 200, body: 'EVENT_RECEIVED' }; // Acknowledge receipt to Facebook
     }
     console.error('Incoming webhook body object is not "page":', body.object);
@@ -269,6 +303,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
   }
 
   // --- 3. Handle Other HTTP Methods ---
+  console.log(`Received ${event.httpMethod} request (Method Not Allowed).`);
   return { statusCode: 405, body: 'Method Not Allowed' };
 };
 
