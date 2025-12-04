@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MessageBubble from './components/MessageBubble';
@@ -321,8 +320,8 @@ const App: React.FC = () => {
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
             <ThemeSelector selectedTheme={dailyPostTheme} onThemeChange={setDailyPostTheme} isLoading={isLoading} />
-            <div className="flex items-center gap-2">
-              <label className="text-gray-700 font-medium">Post Type:</label>
+            <div className="flex items-center gap-2" role="radiogroup" aria-labelledby="post-type-label">
+              <label id="post-type-label" className="text-gray-700 font-medium">Post Type:</label>
               {DAILY_POST_TYPES.map((type) => (
                 <div key={type.value} className="flex items-center">
                   <input
@@ -334,6 +333,7 @@ const App: React.FC = () => {
                     onChange={() => setDailyPostType(type.value as DailyPostType)}
                     disabled={isLoading}
                     className="mr-1"
+                    aria-checked={dailyPostType === type.value}
                   />
                   <label htmlFor={`post-type-${type.value}`} className="text-sm">{type.label}</label>
                 </div>
@@ -346,6 +346,7 @@ const App: React.FC = () => {
               onClick={handleSendMessage}
               className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
               disabled={isLoading}
+              aria-label={isLoading ? 'Generating Post...' : 'Generate Daily Post'}
             >
               {isLoading ? 'Generating Post...' : 'Generate Daily Post'}
             </button>
@@ -369,6 +370,7 @@ const App: React.FC = () => {
                     onChange={(e) => setSelectedMessageToSchedule(e.target.value)}
                     disabled={isLoading}
                     className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    aria-label="Select a bot message to schedule"
                   >
                     <option value="">-- Select a message --</option>
                     {botResponses.map((msg) => (
@@ -389,12 +391,14 @@ const App: React.FC = () => {
                     min={minDateTime}
                     disabled={isLoading}
                     className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    aria-label="Select date and time for scheduling"
                   />
                 </div>
                 <button
                   onClick={handleSendMessage}
                   className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
                   disabled={isLoading || !selectedMessageToSchedule || !scheduledDateTime}
+                  aria-label={isLoading ? 'Scheduling post...' : 'Schedule Post'}
                 >
                   {isLoading ? 'Scheduling...' : 'Schedule Post'}
                 </button>
@@ -421,6 +425,14 @@ const App: React.FC = () => {
                         {post.contentType === 'video' && '🎬 '}
                         {post.previewContent}
                       </p>
+                      {/* Optionally, display full content/link if it's an image/video for better preview */}
+                      {(post.contentType === 'image' || post.contentType === 'video') && post.originalContent && (
+                        <div className="mt-1 flex items-center gap-2">
+                          {post.contentType === 'image' && <img src={post.originalContent} alt="Scheduled content preview" className="max-h-20 rounded-md object-contain" />}
+                          {post.contentType === 'video' && <video src={post.originalContent} controls className="max-h-20 rounded-md object-contain" />}
+                          <a href={post.originalContent} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-xs" aria-label={`View original ${post.contentType}`}>View original</a>
+                        </div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -442,11 +454,13 @@ const App: React.FC = () => {
               placeholder="Type your message here..."
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               disabled={isLoading}
+              aria-label="Message input"
             />
             <button
               onClick={handleSendMessage}
               className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
               disabled={isLoading}
+              aria-label={isLoading ? 'Sending message...' : 'Send message'}
             >
               {isLoading ? 'Sending...' : 'Send'}
             </button>
@@ -481,6 +495,8 @@ const App: React.FC = () => {
               disabled:opacity-50 disabled:cursor-not-allowed`}
             disabled={isLoading}
             title={feature.description}
+            aria-label={feature.name}
+            role="button"
           >
             {feature.icon} {feature.name}
           </button>
@@ -493,7 +509,7 @@ const App: React.FC = () => {
           <MessageBubble key={msg.id} message={msg} />
         ))}
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start" aria-live="polite" aria-atomic="true">
             <div className="bg-gray-300 text-gray-800 p-3 my-2 rounded-xl rounded-bl-none shadow-md">
               <span className="animate-pulse">...thinking...</span>
             </div>
