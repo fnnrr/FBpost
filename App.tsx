@@ -217,7 +217,7 @@ const App: React.FC = () => {
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             storyPrompt,
             false, // No Google Search for stories
-            enableStoryTTS,
+            enableSongSuggestion, // No Google Search for stories
             selectedStoryVoice
           );
 
@@ -716,6 +716,11 @@ const App: React.FC = () => {
       {/* Input Area (sticky footer) */}
       <div className="sticky bottom-0 p-4 bg-white border-t border-gray-200 shadow-lg">
         {renderFeatureInput()}
+      </div>
+
+      {/* Footer for Privacy Policy */}
+      <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200">
+        <a href="/privacy-policy.html" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Privacy Policy</a>
       </div>
     </div>
   );
