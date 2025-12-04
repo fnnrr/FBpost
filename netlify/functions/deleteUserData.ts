@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { Handler, HandlerContext } from '@netlify/functions'; // Corrected import to HandlerContext
 import { MongoClient, Db } from 'mongodb';
 import { createHmac } from 'crypto'; // For HMAC verification

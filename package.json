@@ -1,27 +1,31 @@
 {
-  "name": "gemini-reels-&-stories-bot",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "gemini-reels-stories-bot",
+  "version": "1.0.0",
+  "description": "A Messenger-like bot powered by Gemini, capable of generating themed text, creating and editing images, and generating creative stories with optional voice and song suggestions, with added user data management features.",
+  "main": "index.tsx",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "echo 'No dedicated start script for this simple setup. Serve index.html directly.'",
+    "build": "npm run build:functions",
+    "build:functions": "tsc --project ./tsconfig.json"
   },
   "dependencies": {
-    "react": "^19.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^9.0.0",
     "@google/genai": "^1.31.0",
-    "react-dom": "^19.2.1",
-    "uuid": "^13.0.0",
-    "mongodb": "^7.0.0",
-    "@netlify/functions": "^5.1.0",
-    "crypto": "^1.0.1",
+    "@netlify/functions": "^2.6.0",
+    "mongodb": "^6.8.0",
     "form-data": "^4.0.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "^5.5.3",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/uuid": "^9.0.0",
+    "@types/node": "^18.0.0",
+    "@types/form-data": "^2.5.0"
+  },
+  "engines": {
+    "node": "18"
   }
 }

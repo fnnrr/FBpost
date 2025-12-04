@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { Handler, Context, HandlerContext } from '@netlify/functions';
 import { MongoClient, Db } from 'mongodb'; // Import MongoClient and Db types
 import { GoogleGenAI, Modality } from '@google/genai'; // Added Modality

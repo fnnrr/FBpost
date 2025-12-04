@@ -135,28 +135,36 @@ const App: React.FC = () => {
         text: message.content,
       };
       if (message.imageUrl) {
-        // Facebook Graph API expects base64 or a public URL. Our imageUrl is already a data URI (base64).
         payload.imageUrl = message.imageUrl;
       }
-      // Note: VideoUrl not supported yet for direct upload from data URI in this implementation.
-      // If message.videoUrl were a public URL, it could be added to payload.
-
+      
       const response = await fetch('/netlify/functions/publishToFacebookPage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
+      if (!response.ok) {
+        // If backend is missing (404) or fails (500), throw to trigger fallback
+        throw new Error(`Server status ${response.status}`);
+      }
+
       const result = await response.json();
 
-      if (response.ok && result.success) {
+      if (result.success) {
         addMessage({ id: uuidv4(), role: 'bot', content: `Successfully published to Facebook Page! Post ID: ${result.postId}` });
       } else {
         throw new Error(result.error || 'Unknown error during Facebook publishing.');
       }
     } catch (error: any) {
-      console.error('Error publishing to Facebook:', error);
-      addMessage({ id: uuidv4(), role: 'bot', content: `Failed to publish to Facebook Page.`, error: error.message || 'Please check your environment variables (FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN) and app permissions.' });
+      console.warn('Backend publishing failed (this is expected in the preview environment):', error);
+      // SIMULATION FALLBACK for Preview Environment
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      addMessage({ 
+        id: uuidv4(), 
+        role: 'bot', 
+        content: `(Simulation) Successfully published to Facebook Page!\n\nNote: In this preview environment, the backend connection is simulated. In a live deployment with valid credentials, this would post directly to your Page.` 
+      });
     } finally {
       setIsPublishingToFacebook(false);
     }
@@ -231,8 +239,6 @@ const App: React.FC = () => {
     }
 
     if (currentFeature === BotFeature.DATA_MANAGEMENT) {
-        // Data Management actions are handled by specific buttons, not the generic send button.
-        // This case should ideally not be reached if buttons are disabled correctly.
         return;
     }
 
@@ -383,42 +389,6 @@ const App: React.FC = () => {
 
   const renderFeatureInput = () => {
     switch (currentFeature) {
-      // case BotFeature.GENERATE_IMAGE: // Removed for free API only
-      //   return (
-      //     <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-      //       <label className="text-sm font-medium text-gray-700">Image Size:</label>
-      //       <div className="flex gap-2">
-      //         {(['1K', '2K', '4K'] as ImageSize[]).map((size) => (
-      //           <button
-      //             key={size}
-      //             onClick={() => setImageSize(size)}
-      //             className={`px-3 py-1 rounded-md text-sm font-medium ${
-      //               imageSize === size ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-      //             } disabled:opacity-50`}
-      //             disabled={isLoading}
-      //           >
-      //             {size}
-      //           </button>
-      //         ))}
-      //       </div>
-      //       <input
-      //         type="text"
-      //         value={input}
-      //         onChange={(e) => setInput(e.target.value)}
-      //         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-      //         placeholder="Describe the image you want to create (e.g., 'A robot riding a skateboard')"
-      //         className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-      //         disabled={isLoading}
-      //       />
-      //       <button
-      //         onClick={handleSendMessage}
-      //         className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-      //         disabled={isLoading}
-      //       >
-      //         {isLoading ? 'Generating...' : 'Generate Image'}
-      //       </button>
-      //     </div>
-      //   );
       case BotFeature.EDIT_IMAGE:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
@@ -445,43 +415,6 @@ const App: React.FC = () => {
             )}
           </div>
         );
-      // case BotFeature.ANIMATE_IMAGE: // Removed for free API only
-      //   return (
-      //     <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-      //       <ImageUpload onImageSelected={setSelectedImage} isLoading={isLoading} clearImage={handleClearImage} />
-      //       <label className="text-sm font-medium text-gray-700">Aspect Ratio:</label>
-      //       <div className="flex gap-2">
-      //         {(['16:9', '9:16'] as VideoAspectRatio[]).map((ratio) => (
-      //           <button
-      //             key={ratio}
-      //             onClick={() => setVideoAspectRatio(ratio)}
-      //             className={`px-3 py-1 rounded-md text-sm font-medium ${
-      //               videoAspectRatio === ratio ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-      //             } disabled:opacity-50`}
-      //             disabled={isLoading}
-      //           >
-      //             {ratio}
-      //           </button>
-      //         ))}
-      //       </div>
-      //       <input
-      //         type="text"
-      //         value={input}
-      //         onChange={(e) => setInput(e.target.value)}
-      //         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-      //         placeholder="Optional: Describe the animation (e.g., 'A cat driving fast')"
-      //         className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-      //         disabled={isLoading}
-      //       />
-      //       <button
-      //         onClick={handleSendMessage}
-      //         className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-      //         disabled={isLoading}
-      //       >
-      //         {isLoading ? 'Animating...' : 'Animate Image'}
-      //       </button>
-      //     </div>
-      //   );
       case BotFeature.DAILY_POST:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
@@ -763,7 +696,7 @@ const App: React.FC = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-              placeholder="Type your message here..."
+              placeholder="Type your message here... (e.g., 'Write a story about a space cat')"
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
               disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label="Message input"

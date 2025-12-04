@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { Handler, HandlerContext } from '@netlify/functions';
 import { GoogleGenAI, GenerateContentResponse, Modality } from '@google/genai';
 import {

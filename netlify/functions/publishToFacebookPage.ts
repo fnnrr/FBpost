@@ -1,3 +1,4 @@
+import { Buffer } from 'buffer';
 import { Handler, HandlerContext } from '@netlify/functions';
 import { FB_PAGE_ACCESS_TOKEN, FB_PAGE_ID } from '../../constants'; // Use constants for access token and page ID
 
