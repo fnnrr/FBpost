@@ -1,12 +1,12 @@
 {
   "name": "gemini-reels-stories-bot",
   "version": "1.0.0",
-  "description": "A Messenger-like bot powered by Gemini, capable of generating themed text, creating and editing images, and generating creative stories with optional voice and song suggestions, with added user data management features.",
+  "description": "A Messenger-like bot powered by Gemini.",
   "main": "index.tsx",
   "scripts": {
-    "start": "echo 'No dedicated start script for this simple setup. Serve index.html directly.'",
-    "build": "mkdir -p dist && cp index.html metadata.json dist/ && cp -r components services netlify types.ts constants.ts App.tsx index.tsx dist/ 2>/dev/null || :",
-    "build:functions": "tsc --project ./tsconfig.json"
+    "start": "vite",
+    "build": "vite build && cp metadata.json dist/",
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -23,7 +23,9 @@
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^9.0.0",
     "@types/node": "^18.0.0",
-    "@types/form-data": "^2.5.0"
+    "@types/form-data": "^2.5.0",
+    "vite": "^5.2.0",
+    "@vitejs/plugin-react": "^4.2.0"
   },
   "engines": {
     "node": "18"

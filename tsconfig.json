@@ -1,29 +1,21 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "module": "CommonJS",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "noEmit": true,
+    "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
-    "rootDir": ".",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
     "jsx": "react-jsx",
-    "resolveJsonModule": true
+    "strict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true
   },
-  "include": [
-    "index.tsx",
-    "App.tsx",
-    "components/**/*.tsx",
-    "services/**/*.ts",
-    "netlify/functions/**/*.ts",
-    "types.ts",
-    "constants.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "functions-build"
-  ]
+  "include": ["**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
 }

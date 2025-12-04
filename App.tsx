@@ -1,48 +1,40 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import MessageBubble from './components/MessageBubble.tsx';
-import ImageUpload from './components/ImageUpload.tsx';
-import ThemeSelector from './components/ThemeSelector.tsx';
-import PrivacyPolicy from './components/PrivacyPolicy.tsx';
-import TermsOfService from './components/TermsOfService.tsx';
+import MessageBubble from './components/MessageBubble';
+import ImageUpload from './components/ImageUpload';
+import ThemeSelector from './components/ThemeSelector';
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService';
 import {
   generateTextContent,
-  // generateImage, // Removed for free API only
   editImage,
-  // generateVideo, // Removed for free API only
-} from './services/geminiService.ts';
-import { Message, BotFeature, /* ImageSize, VideoAspectRatio, */ DailyPostTheme, DailyPostType, ScheduledPost, PrebuiltVoice } from './types.ts';
-import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES, TTS_VOICES } from './constants.ts';
+} from './services/geminiService';
+import { Message, BotFeature, DailyPostTheme, DailyPostType, ScheduledPost, PrebuiltVoice } from './types';
+import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES, TTS_VOICES } from './constants';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Indicates content generation is happening
-  const [isPosting, setIsPosting] = useState<boolean>(false); // Indicates "post now" simulation is happening
-  const [isPublishingToFacebook, setIsPublishingToFacebook] = useState<boolean>(false); // New state for Facebook publishing
+  const [isLoading, setIsLoading] = useState<boolean>(false); 
+  const [isPosting, setIsPosting] = useState<boolean>(false); 
+  const [isPublishingToFacebook, setIsPublishingToFacebook] = useState<boolean>(false);
   const [currentFeature, setCurrentFeature] = useState<BotFeature>(BotFeature.CHAT);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false);
   const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false);
 
-  // States for specific features
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  // const [imageSize, setImageSize] = useState<ImageSize>('1K'); // Removed for free API only
-  // const [videoAspectRatio, setVideoAspectRatio] = useState<VideoAspectRatio>('16:9'); // Removed for free API only
   const [dailyPostTheme, setDailyPostTheme] = useState<DailyPostTheme>('inspirational');
-  const [dailyPostType, setDailyPostType] = useState<DailyPostType>('story_reel'); // New state for daily post type
-  const [enableDailyPostTTS, setEnableDailyPostTTS] = useState<boolean>(false); // New state for TTS
-  const [selectedDailyPostVoice, setSelectedDailyPostVoice] = useState<PrebuiltVoice>(PrebuiltVoice.ZEPHYR); // New state for TTS voice
+  const [dailyPostType, setDailyPostType] = useState<DailyPostType>('story_reel');
+  const [enableDailyPostTTS, setEnableDailyPostTTS] = useState<boolean>(false);
+  const [selectedDailyPostVoice, setSelectedDailyPostVoice] = useState<PrebuiltVoice>(PrebuiltVoice.ZEPHYR);
 
-  // States for Create Story feature
   const [storyTheme, setStoryTheme] = useState<DailyPostTheme>('inspirational');
   const [enableStoryTTS, setEnableStoryTTS] = useState<boolean>(false);
   const [selectedStoryVoice, setSelectedStoryVoice] = useState<PrebuiltVoice>(PrebuiltVoice.ZEPHYR);
   const [enableSongSuggestion, setEnableSongSuggestion] = useState<boolean>(false);
 
-
-  // States for Schedule Post feature
-  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]); // Corrected this line
-  const [selectedMessageToSchedule, setSelectedMessageToSchedule] = useState<string>(''); // Message ID
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [selectedMessageToSchedule, setSelectedMessageToSchedule] = useState<string>('');
   const [scheduledDateTime, setScheduledDateTime] = useState<string>('');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -55,7 +47,6 @@ const App: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  // Load scheduled posts from localStorage on mount
   useEffect(() => {
     try {
       const storedPosts = localStorage.getItem('scheduledPosts');
@@ -67,7 +58,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save scheduled posts to localStorage whenever they change
   useEffect(() => {
     try {
       localStorage.setItem('scheduledPosts', JSON.stringify(scheduledPosts));
@@ -76,25 +66,20 @@ const App: React.FC = () => {
     }
   }, [scheduledPosts]);
 
-  // Handle URL parameters for displaying modals on initial load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const path = window.location.pathname;
 
-    // Check both query parameters and clean paths
     if (params.get('show') === 'privacy' || path === '/privacy-policy') {
       setShowPrivacyPolicy(true);
     } else if (params.get('show') === 'terms' || path === '/terms-of-service') {
       setShowTermsOfService(true);
     }
 
-    // Optionally clear the URL parameter if it was set by an internal link click
-    // This helps keep the URL clean after the modal is shown, but retains clean paths.
     if (window.location.search.includes('?show=')) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
-
 
   const addMessage = useCallback((message: Message) => {
     setMessages((prevMessages) => [...prevMessages, message]);
@@ -104,7 +89,7 @@ const App: React.FC = () => {
     if (window.confirm('Are you sure you want to clear ALL locally stored scheduled posts? This action cannot be undone.')) {
       try {
         localStorage.removeItem('scheduledPosts');
-        setScheduledPosts([]); // Clear state immediately
+        setScheduledPosts([]);
         addMessage({
           id: uuidv4(),
           role: 'bot',
@@ -145,7 +130,6 @@ const App: React.FC = () => {
       });
 
       if (!response.ok) {
-        // If backend is missing (404) or fails (500), throw to trigger fallback
         throw new Error(`Server status ${response.status}`);
       }
 
@@ -158,7 +142,6 @@ const App: React.FC = () => {
       }
     } catch (error: any) {
       console.warn('Backend publishing failed (this is expected in the preview environment):', error);
-      // SIMULATION FALLBACK for Preview Environment
       await new Promise(resolve => setTimeout(resolve, 1500));
       addMessage({ 
         id: uuidv4(), 
@@ -170,19 +153,17 @@ const App: React.FC = () => {
     }
   }, [addMessage]);
 
-
   const handleSendMessage = useCallback(async () => {
-    if (isLoading || isPosting || isPublishingToFacebook) return; // Prevent multiple requests or interactions during loading/posting/publishing
+    if (isLoading || isPosting || isPublishingToFacebook) return; 
 
     if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.SCHEDULE_POST && currentFeature !== BotFeature.CREATE_STORY && currentFeature !== BotFeature.DATA_MANAGEMENT && !input.trim()) return;
 
-    // Handle scheduling separately, as it doesn't involve sending input to Gemini
     if (currentFeature === BotFeature.SCHEDULE_POST) {
       if (!selectedMessageToSchedule || !scheduledDateTime) {
         alert('Please select a message and a scheduled date/time.');
         return;
       }
-      setIsLoading(true); // Use isLoading for the scheduling operation itself
+      setIsLoading(true);
       try {
         const messageToSchedule = messages.find(msg => msg.id === selectedMessageToSchedule);
         if (!messageToSchedule || messageToSchedule.role !== 'bot' || messageToSchedule.error) {
@@ -206,7 +187,6 @@ const App: React.FC = () => {
           originalContent = messageToSchedule.audioUrl;
           previewContent = `Audio: ${messageToSchedule.content.substring(0, 30)}...`;
         }
-
 
         const newScheduledPost: ScheduledPost = {
           id: uuidv4(),
@@ -233,39 +213,38 @@ const App: React.FC = () => {
           error: error.message || 'Unknown error',
         });
       } finally {
-        setIsLoading(false); // Ensure loading is off for scheduling
+        setIsLoading(false);
       }
-      return; // Exit here as scheduling is handled
+      return;
     }
 
     if (currentFeature === BotFeature.DATA_MANAGEMENT) {
         return;
     }
 
-
     const userMessage: Message = { id: uuidv4(), role: 'user', content: input };
     if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.CREATE_STORY) {
-      addMessage(userMessage); // Only add user message if it's not generated by button click
+      addMessage(userMessage);
     }
     setInput('');
-    setIsLoading(true); // Start loading for content generation
+    setIsLoading(true);
 
     try {
       let generatedContentMessage: Message | undefined;
 
       switch (currentFeature) {
         case BotFeature.CHAT: {
-          const { text, groundingUrls } = await generateTextContent(input, true); // Enable Google Search for general chat
+          const { text, groundingUrls } = await generateTextContent(input, true);
           addMessage({ id: uuidv4(), role: 'bot', content: text, groundingUrls } as Message);
           break;
         }
         case BotFeature.EDIT_IMAGE: {
           if (!selectedImage) {
             addMessage({ id: uuidv4(), role: 'bot', content: 'Please upload an image to edit.', error: 'Please upload an image to edit.' });
-            setIsLoading(false); // End loading if validation fails
+            setIsLoading(false);
             return;
           }
-          addMessage({ id: uuidv4(), role: 'bot', content: `Editing your image with: "${input}"...` }); // Immediate feedback
+          addMessage({ id: uuidv4(), role: 'bot', content: `Editing your image with: "${input}"...` });
           const editedImageUrl = await editImage(selectedImage, input);
           generatedContentMessage = { id: uuidv4(), role: 'bot', content: `Here is your edited image for "${input}":`, imageUrl: editedImageUrl };
           break;
@@ -276,7 +255,7 @@ const App: React.FC = () => {
           if (dailyPostType === 'story_reel') {
             prompt = `Generate a short ${dailyPostTheme} themed story or inspirational message suitable for a social media reel/story. Keep it concise, around 100-150 words.`;
             initialBotMessage += `short & engaging `;
-          } else { // regular_post
+          } else { 
             prompt = `Generate a detailed ${dailyPostTheme} themed story or message suitable for a regular social media post. Make it engaging and provide a clear narrative or insightful reflection, around 200-300 words.`;
             initialBotMessage += `detailed `;
           }
@@ -286,11 +265,11 @@ const App: React.FC = () => {
           }
           initialBotMessage += `...`;
 
-          addMessage({ id: uuidv4(), role: 'bot', content: initialBotMessage }); // Immediate feedback
+          addMessage({ id: uuidv4(), role: 'bot', content: initialBotMessage });
 
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             prompt,
-            false, // No Google Search for daily posts
+            false,
             enableDailyPostTTS,
             selectedDailyPostVoice
           );
@@ -316,8 +295,8 @@ const App: React.FC = () => {
 
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             storyPrompt,
-            false, // No Google Search for stories
-            enableStoryTTS, // Pass enableStoryTTS to generateTextContent
+            false,
+            enableStoryTTS,
             selectedStoryVoice
           );
 
@@ -327,7 +306,7 @@ const App: React.FC = () => {
           const match = storyText.match(songRegex);
           if (match && match[1]) {
             songSuggestion = match[1];
-            storyText = storyText.replace(songRegex, '').trim(); // Remove song suggestion from main story text
+            storyText = storyText.replace(songRegex, '').trim();
           }
 
           let finalContent = `Story (${storyTheme}):\n\n${storyText}`;
@@ -340,16 +319,15 @@ const App: React.FC = () => {
         }
       }
 
-      // If content was generated for Daily Post, Edit Image, or Create Story, simulate posting
       if (generatedContentMessage) {
-        setIsLoading(false); // Generation is complete
-        setIsPosting(true); // Start posting simulation
+        setIsLoading(false);
+        setIsPosting(true);
 
         addMessage({ id: uuidv4(), role: 'bot', content: "Simulating 'Post Now' for your content..." });
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         addMessage({ id: uuidv4(), role: 'bot', content: "Simulated 'Post Now' successful! Here's your content, ready for you to share manually on social media:" });
-        addMessage(generatedContentMessage); // Add the actual generated content
+        addMessage(generatedContentMessage);
       }
     } catch (error: any) {
       console.error('API Error:', error);
@@ -360,26 +338,22 @@ const App: React.FC = () => {
         error: error.message || 'Please try again later.',
       });
     } finally {
-      setIsLoading(false); // Ensure loading is off
-      setIsPosting(false); // Ensure posting simulation is off
-      // For image/video features, reset selected image after successful operation or error
-      if (currentFeature === BotFeature.EDIT_IMAGE /* || currentFeature === BotFeature.ANIMATE_IMAGE */) {
+      setIsLoading(false);
+      setIsPosting(false);
+      if (currentFeature === BotFeature.EDIT_IMAGE) {
         setSelectedImage(null);
       }
-      // Reset input for Daily Post and Create Story as well, since they use a button
       if (currentFeature === BotFeature.DAILY_POST || currentFeature === BotFeature.CREATE_STORY) {
         setInput('');
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isLoading, isPosting, currentFeature, selectedImage, /* imageSize, videoAspectRatio, */ dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, enableStoryTTS, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage, isPublishingToFacebook]); // Added isPublishingToFacebook here
+  }, [input, isLoading, isPosting, currentFeature, selectedImage, dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, enableStoryTTS, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage, isPublishingToFacebook]);
 
   const handleClearImage = useCallback(() => {
     setSelectedImage(null);
   }, []);
 
   const getBotMessagesForScheduling = useCallback(() => {
-    // Filter for bot messages that are not errors and have actual content/image/video/audio
     return messages.filter(msg =>
       msg.role === 'bot' &&
       !msg.error &&
@@ -439,7 +413,6 @@ const App: React.FC = () => {
               ))}
             </div>
 
-            {/* New: Text-to-Speech Options */}
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex items-center gap-2">
                 <input
@@ -493,7 +466,6 @@ const App: React.FC = () => {
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
             <ThemeSelector selectedTheme={storyTheme} onThemeChange={setStoryTheme} isLoading={isLoading || isPosting || isPublishingToFacebook} />
 
-            {/* Text-to-Speech Options for Story */}
             <div className="flex flex-col gap-2 mt-2">
               <div className="flex items-center gap-2">
                 <input
@@ -526,7 +498,6 @@ const App: React.FC = () => {
               )}
             </div>
 
-            {/* Song Suggestion Option */}
             <div className="flex items-center gap-2 mt-2">
               <input
                 type="checkbox"
@@ -640,7 +611,6 @@ const App: React.FC = () => {
                         {post.contentType === 'audio' && '🔊 '}
                         {post.previewContent}
                       </p>
-                      {/* Optionally, display full content/link if it's an image/video/audio for better preview */}
                       {(post.contentType === 'image' || post.contentType === 'video' || post.contentType === 'audio') && post.originalContent && (
                         <div className="mt-1 flex items-center gap-2">
                           {post.contentType === 'image' && <img src={post.originalContent} alt="Scheduled content preview" className="max-h-20 rounded-md object-contain" />}
@@ -690,27 +660,25 @@ const App: React.FC = () => {
     : isPosting
       ? '...simulating post now...'
       : isPublishingToFacebook
-        ? '...publishing to Facebook...' // New status message
+        ? '...publishing to Facebook...' 
         : null;
 
   return (
     <div className="flex flex-col w-full max-w-2xl h-[90vh] bg-white rounded-lg shadow-xl overflow-hidden">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-4 text-center text-xl font-bold">
         Gemini Reels & Stories Bot
       </div>
 
-      {/* Feature Selector */}
       <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border-b border-gray-200 justify-center">
         {BOT_FEATURES.map((feature) => (
           <button
             key={feature.id}
             onClick={() => {
               setCurrentFeature(feature.id);
-              setInput(''); // Clear input when switching feature
-              setSelectedImage(null); // Clear image when switching features
-              setSelectedMessageToSchedule(''); // Clear scheduling selection
-              setScheduledDateTime(''); // Clear scheduled date/time
+              setInput(''); 
+              setSelectedImage(null); 
+              setSelectedMessageToSchedule(''); 
+              setScheduledDateTime(''); 
             }}
             className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-colors duration-200
               ${currentFeature === feature.id
@@ -726,14 +694,13 @@ const App: React.FC = () => {
         ))}
       </div>
 
-      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
         {messages.map((msg) => (
           <MessageBubble
             key={msg.id}
             message={msg}
-            onPublishToFacebook={handlePublishToFacebook} // Pass the new handler
-            isPublishingDisabled={isLoading || isPosting || isPublishingToFacebook} // Disable button when any main process is active
+            onPublishToFacebook={handlePublishToFacebook} 
+            isPublishingDisabled={isLoading || isPosting || isPublishingToFacebook} 
           />
         ))}
         {currentStatusMessage && (
@@ -746,12 +713,10 @@ const App: React.FC = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area (sticky footer) */}
       <div className="sticky bottom-0 p-4 bg-white border-t border-gray-200 shadow-lg">
         {renderFeatureInput()}
       </div>
 
-      {/* Footer for Privacy Policy and Terms of Service */}
       <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200 flex justify-center space-x-4">
         <a
           href="/?show=privacy"
@@ -769,7 +734,6 @@ const App: React.FC = () => {
         </a>
       </div>
 
-      {/* Privacy Policy Modal */}
       {showPrivacyPolicy && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
@@ -781,7 +745,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Terms of Service Modal */}
       {showTermsOfService && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Message } from '../types.ts';
-import VideoPlayer from './VideoPlayer.tsx';
+import { Message } from '../types';
+import VideoPlayer from './VideoPlayer';
 
 interface MessageBubbleProps {
   message: Message;
-  onPublishToFacebook?: (message: Message) => void; // New prop for publishing
-  isPublishingDisabled?: boolean; // New prop to disable publishing button
+  onPublishToFacebook?: (message: Message) => void;
+  isPublishingDisabled?: boolean; 
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onPublishToFacebook, isPublishingDisabled }) => {
@@ -14,7 +14,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onPublishToFaceb
     ? 'bg-blue-500 text-white self-end rounded-br-none'
     : 'bg-gray-300 text-gray-800 self-start rounded-bl-none';
 
-  // Determine if the message is eligible for publishing to Facebook
   const canPublish = onPublishToFacebook && message.role === 'bot' && !message.error && (message.content || message.imageUrl);
 
   const handlePublishClick = () => {
