@@ -15,7 +15,8 @@
     "uuid": "^13.0.0",
     "mongodb": "^7.0.0",
     "@netlify/functions": "^5.1.0",
-    "crypto": "^1.0.1"
+    "crypto": "^1.0.1",
+    "form-data": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

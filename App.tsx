@@ -19,6 +19,7 @@ const App: React.FC = () => {
   const [input, setInput] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false); // Indicates content generation is happening
   const [isPosting, setIsPosting] = useState<boolean>(false); // Indicates "post now" simulation is happening
+  const [isPublishingToFacebook, setIsPublishingToFacebook] = useState<boolean>(false); // New state for Facebook publishing
   const [currentFeature, setCurrentFeature] = useState<BotFeature>(BotFeature.CHAT);
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false);
   const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false);
@@ -120,9 +121,50 @@ const App: React.FC = () => {
     }
   }, [addMessage]);
 
+  const handlePublishToFacebook = useCallback(async (message: Message) => {
+    if (!message.content && !message.imageUrl) {
+      addMessage({ id: uuidv4(), role: 'bot', content: 'Cannot publish an empty message or unsupported content type to Facebook.', error: 'Unsupported content for Facebook publishing.' });
+      return;
+    }
+
+    setIsPublishingToFacebook(true);
+    addMessage({ id: uuidv4(), role: 'bot', content: "Publishing to Facebook Page..." });
+
+    try {
+      const payload: { text: string; imageUrl?: string; videoUrl?: string } = {
+        text: message.content,
+      };
+      if (message.imageUrl) {
+        // Facebook Graph API expects base64 or a public URL. Our imageUrl is already a data URI (base64).
+        payload.imageUrl = message.imageUrl;
+      }
+      // Note: VideoUrl not supported yet for direct upload from data URI in this implementation.
+      // If message.videoUrl were a public URL, it could be added to payload.
+
+      const response = await fetch('/netlify/functions/publishToFacebookPage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        addMessage({ id: uuidv4(), role: 'bot', content: `Successfully published to Facebook Page! Post ID: ${result.postId}` });
+      } else {
+        throw new Error(result.error || 'Unknown error during Facebook publishing.');
+      }
+    } catch (error: any) {
+      console.error('Error publishing to Facebook:', error);
+      addMessage({ id: uuidv4(), role: 'bot', content: `Failed to publish to Facebook Page.`, error: error.message || 'Please check your environment variables (FB_PAGE_ID, FB_PAGE_ACCESS_TOKEN) and app permissions.' });
+    } finally {
+      setIsPublishingToFacebook(false);
+    }
+  }, [addMessage]);
+
 
   const handleSendMessage = useCallback(async () => {
-    if (isLoading || isPosting) return; // Prevent multiple requests or interactions during loading/posting
+    if (isLoading || isPosting || isPublishingToFacebook) return; // Prevent multiple requests or interactions during loading/posting/publishing
 
     if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.SCHEDULE_POST && currentFeature !== BotFeature.CREATE_STORY && currentFeature !== BotFeature.DATA_MANAGEMENT && !input.trim()) return;
 
@@ -324,7 +366,7 @@ const App: React.FC = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, isLoading, isPosting, currentFeature, selectedImage, /* imageSize, videoAspectRatio, */ dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, enableStoryTTS, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage]);
+  }, [input, isLoading, isPosting, currentFeature, selectedImage, /* imageSize, videoAspectRatio, */ dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, enableStoryTTS, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage, isPublishingToFacebook]); // Added isPublishingToFacebook here
 
   const handleClearImage = useCallback(() => {
     setSelectedImage(null);
@@ -380,7 +422,7 @@ const App: React.FC = () => {
       case BotFeature.EDIT_IMAGE:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-            <ImageUpload onImageSelected={setSelectedImage} isLoading={isLoading || isPosting} clearImage={handleClearImage} />
+            <ImageUpload onImageSelected={setSelectedImage} isLoading={isLoading || isPosting || isPublishingToFacebook} clearImage={handleClearImage} />
             {selectedImage && (
               <>
                 <input
@@ -390,12 +432,12 @@ const App: React.FC = () => {
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                   placeholder="How do you want to edit the image? (e.g., 'Add a retro filter')"
                   className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                  disabled={isLoading || isPosting}
+                  disabled={isLoading || isPosting || isPublishingToFacebook}
                 />
                 <button
                   onClick={handleSendMessage}
                   className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-                  disabled={isLoading || isPosting || !selectedImage}
+                  disabled={isLoading || isPosting || isPublishingToFacebook || !selectedImage}
                 >
                   {isLoading ? 'Generating...' : isPosting ? 'Simulating Post...' : 'Edit & Post Image'}
                 </button>
@@ -443,7 +485,7 @@ const App: React.FC = () => {
       case BotFeature.DAILY_POST:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-            <ThemeSelector selectedTheme={dailyPostTheme} onThemeChange={setDailyPostTheme} isLoading={isLoading || isPosting} />
+            <ThemeSelector selectedTheme={dailyPostTheme} onThemeChange={setDailyPostTheme} isLoading={isLoading || isPosting || isPublishingToFacebook} />
             <div className="flex items-center gap-2" role="radiogroup" aria-labelledby="post-type-label">
               <label id="post-type-label" className="text-gray-700 font-medium">Post Type:</label>
               {DAILY_POST_TYPES.map((type) => (
@@ -455,7 +497,7 @@ const App: React.FC = () => {
                     value={type.value}
                     checked={dailyPostType === type.value}
                     onChange={() => setDailyPostType(type.value as DailyPostType)}
-                    disabled={isLoading || isPosting}
+                    disabled={isLoading || isPosting || isPublishingToFacebook}
                     className="mr-1"
                     aria-checked={dailyPostType === type.value}
                   />
@@ -472,7 +514,7 @@ const App: React.FC = () => {
                   id="enable-tts"
                   checked={enableDailyPostTTS}
                   onChange={(e) => setEnableDailyPostTTS(e.target.checked)}
-                  disabled={isLoading || isPosting}
+                  disabled={isLoading || isPosting || isPublishingToFacebook}
                   className="mr-1"
                 />
                 <label htmlFor="enable-tts" className="text-gray-700 font-medium">Enable Text-to-Speech</label>
@@ -484,7 +526,7 @@ const App: React.FC = () => {
                     id="voice-select"
                     value={selectedDailyPostVoice}
                     onChange={(e) => setSelectedDailyPostVoice(e.target.value as PrebuiltVoice)}
-                    disabled={isLoading || isPosting}
+                    disabled={isLoading || isPosting || isPublishingToFacebook}
                     className="p-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     {TTS_VOICES.map((voice) => (
@@ -503,7 +545,7 @@ const App: React.FC = () => {
             <button
               onClick={handleSendMessage}
               className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              disabled={isLoading || isPosting}
+              disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label={isLoading ? 'Generating Post...' : isPosting ? 'Simulating Post...' : 'Generate & Post Daily Content'}
             >
               {isLoading ? 'Generating Post...' : isPosting ? 'Simulating Post...' : 'Generate & Post Daily Content'}
@@ -516,7 +558,7 @@ const App: React.FC = () => {
       case BotFeature.CREATE_STORY:
         return (
           <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-md">
-            <ThemeSelector selectedTheme={storyTheme} onThemeChange={setStoryTheme} isLoading={isLoading || isPosting} />
+            <ThemeSelector selectedTheme={storyTheme} onThemeChange={setStoryTheme} isLoading={isLoading || isPosting || isPublishingToFacebook} />
 
             {/* Text-to-Speech Options for Story */}
             <div className="flex flex-col gap-2 mt-2">
@@ -526,7 +568,7 @@ const App: React.FC = () => {
                   id="enable-story-tts"
                   checked={enableStoryTTS}
                   onChange={(e) => setEnableStoryTTS(e.target.checked)}
-                  disabled={isLoading || isPosting}
+                  disabled={isLoading || isPosting || isPublishingToFacebook}
                   className="mr-1"
                 />
                 <label htmlFor="enable-story-tts" className="text-gray-700 font-medium">Enable Text-to-Speech</label>
@@ -538,7 +580,7 @@ const App: React.FC = () => {
                     id="story-voice-select"
                     value={selectedStoryVoice}
                     onChange={(e) => setSelectedStoryVoice(e.target.value as PrebuiltVoice)}
-                    disabled={isLoading || isPosting}
+                    disabled={isLoading || isPosting || isPublishingToFacebook}
                     className="p-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >
                     {TTS_VOICES.map((voice) => (
@@ -558,7 +600,7 @@ const App: React.FC = () => {
                 id="enable-song-suggestion"
                 checked={enableSongSuggestion}
                 onChange={(e) => setEnableSongSuggestion(e.target.checked)}
-                disabled={isLoading || isPosting}
+                disabled={isLoading || isPosting || isPublishingToFacebook}
                 className="mr-1"
               />
               <label htmlFor="enable-song-suggestion" className="text-gray-700 font-medium">Suggest a Song</label>
@@ -571,7 +613,7 @@ const App: React.FC = () => {
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder="Optional: Add a specific idea for your story..."
               className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 mt-2"
-              disabled={isLoading || isPosting}
+              disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label="Story idea input"
             />
 
@@ -581,7 +623,7 @@ const App: React.FC = () => {
             <button
               onClick={handleSendMessage}
               className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              disabled={isLoading || isPosting}
+              disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label={isLoading ? 'Generating Story...' : isPosting ? 'Simulating Post...' : 'Create & Post Story'}
             >
               {isLoading ? 'Generating Story...' : isPosting ? 'Simulating Post...' : 'Create & Post Story'}
@@ -607,7 +649,7 @@ const App: React.FC = () => {
                     id="message-select"
                     value={selectedMessageToSchedule}
                     onChange={(e) => setSelectedMessageToSchedule(e.target.value)}
-                    disabled={isLoading || isPosting}
+                    disabled={isLoading || isPosting || isPublishingToFacebook}
                     className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     aria-label="Select a bot message to schedule"
                   >
@@ -628,7 +670,7 @@ const App: React.FC = () => {
                     value={scheduledDateTime}
                     onChange={(e) => setScheduledDateTime(e.target.value)}
                     min={minDateTime}
-                    disabled={isLoading || isPosting}
+                    disabled={isLoading || isPosting || isPublishingToFacebook}
                     className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                     aria-label="Select date and time for scheduling"
                   />
@@ -636,7 +678,7 @@ const App: React.FC = () => {
                 <button
                   onClick={handleSendMessage}
                   className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-                  disabled={isLoading || isPosting || !selectedMessageToSchedule || !scheduledDateTime}
+                  disabled={isLoading || isPosting || isPublishingToFacebook || !selectedMessageToSchedule || !scheduledDateTime}
                   aria-label={isLoading ? 'Scheduling post...' : 'Schedule Post'}
                 >
                   {isLoading ? 'Scheduling...' : 'Schedule Post'}
@@ -696,7 +738,7 @@ const App: React.FC = () => {
               <button
                 onClick={handleClearLocalScheduledPosts}
                 className="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
-                disabled={isLoading || isPosting}
+                disabled={isLoading || isPosting || isPublishingToFacebook}
                 aria-label="Clear all local scheduled posts"
               >
                 Clear Local Scheduled Posts
@@ -723,13 +765,13 @@ const App: React.FC = () => {
               onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
               placeholder="Type your message here..."
               className="flex-grow p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-              disabled={isLoading || isPosting}
+              disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label="Message input"
             />
             <button
               onClick={handleSendMessage}
               className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
-              disabled={isLoading || isPosting}
+              disabled={isLoading || isPosting || isPublishingToFacebook}
               aria-label={isLoading ? 'Sending message...' : 'Send message'}
             >
               {isLoading ? 'Sending...' : 'Send'}
@@ -743,7 +785,9 @@ const App: React.FC = () => {
     ? '...generating content...'
     : isPosting
       ? '...simulating post now...'
-      : null;
+      : isPublishingToFacebook
+        ? '...publishing to Facebook...' // New status message
+        : null;
 
   return (
     <div className="flex flex-col w-full max-w-2xl h-[90vh] bg-white rounded-lg shadow-xl overflow-hidden">
@@ -781,7 +825,12 @@ const App: React.FC = () => {
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
         {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} />
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            onPublishToFacebook={handlePublishToFacebook} // Pass the new handler
+            isPublishingDisabled={isLoading || isPosting || isPublishingToFacebook} // Disable button when any main process is active
+          />
         ))}
         {currentStatusMessage && (
           <div className="flex justify-start" aria-live="polite" aria-atomic="true">

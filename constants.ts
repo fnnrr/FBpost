@@ -79,3 +79,6 @@ export const TTS_VOICES = [
 
 export const BILLING_DOCS_URL = 'ai.google.dev/gemini-api/docs/billing';
 export const FB_APP_SECRET = process.env.FB_APP_SECRET; // New: Facebook App Secret for webhook verification
+export const FB_PAGE_ID = process.env.FB_PAGE_ID; // New: Facebook Page ID for publishing posts
+// New: Facebook Page Access Token for publishing posts
+export const FB_PAGE_ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN;

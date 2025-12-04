@@ -4,13 +4,24 @@ import VideoPlayer from './VideoPlayer';
 
 interface MessageBubbleProps {
   message: Message;
+  onPublishToFacebook?: (message: Message) => void; // New prop for publishing
+  isPublishingDisabled?: boolean; // New prop to disable publishing button
 }
 
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onPublishToFacebook, isPublishingDisabled }) => {
   const isUser = message.role === 'user';
   const bubbleClasses = isUser
     ? 'bg-blue-500 text-white self-end rounded-br-none'
     : 'bg-gray-300 text-gray-800 self-start rounded-bl-none';
+
+  // Determine if the message is eligible for publishing to Facebook
+  const canPublish = onPublishToFacebook && message.role === 'bot' && !message.error && (message.content || message.imageUrl);
+
+  const handlePublishClick = () => {
+    if (onPublishToFacebook && canPublish && !isPublishingDisabled) {
+      onPublishToFacebook(message);
+    }
+  };
 
   return (
     <div className={`flex w-full ${isUser ? 'justify-end' : 'justify-start'}`}>
@@ -44,6 +55,23 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                   ))}
                 </ul>
               </div>
+            )}
+
+            {canPublish && (
+              <button
+                onClick={handlePublishClick}
+                disabled={isPublishingDisabled}
+                className={`mt-3 flex items-center justify-center gap-2 px-3 py-1 text-sm font-medium rounded-full transition-colors duration-200
+                  ${isPublishingDisabled ? 'bg-gray-400 text-gray-700 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}
+                  shadow-md`}
+                aria-label="Publish to Facebook Page"
+                title="Publish this content directly to your configured Facebook Page"
+              >
+                <svg fill="currentColor" viewBox="0 0 24 24" width="1em" height="1em" className="inline-block">
+                  <path d="M12 2.039c-5.52 0-10 4.48-10 10s4.48 10 10 10 10-4.48 10-10-4.48-10-10-10zm.775 14.538h-1.55v-4.111H9.864v-1.282h1.361v-.759c0-1.077.348-1.802 1.954-1.802h1.166v1.262h-.705c-.328 0-.46.12-.46.471v.828h1.282l-.184 1.282h-1.098v4.111z"></path>
+                </svg>
+                Publish to Facebook Page
+              </button>
             )}
           </>
         )}
