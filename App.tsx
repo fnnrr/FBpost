@@ -3,7 +3,8 @@ import { v4 as uuidv4 } from 'uuid';
 import MessageBubble from './components/MessageBubble';
 import ImageUpload from './components/ImageUpload';
 import ThemeSelector from './components/ThemeSelector';
-import PrivacyPolicy from './components/PrivacyPolicy'; // Import the new PrivacyPolicy component
+import PrivacyPolicy from './components/PrivacyPolicy';
+import TermsOfService from './components/TermsOfService'; // Import the new TermsOfService component
 import {
   generateTextContent,
   // generateImage, // Removed for free API only
@@ -19,7 +20,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false); // Indicates content generation is happening
   const [isPosting, setIsPosting] = useState<boolean>(false); // Indicates "post now" simulation is happening
   const [currentFeature, setCurrentFeature] = useState<BotFeature>(BotFeature.CHAT);
-  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false); // New state for privacy policy modal
+  const [showPrivacyPolicy, setShowPrivacyPolicy] = useState<boolean>(false);
+  const [showTermsOfService, setShowTermsOfService] = useState<boolean>(false); // New state for Terms of Service modal
 
   // States for specific features
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -219,7 +221,7 @@ const App: React.FC = () => {
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             storyPrompt,
             false, // No Google Search for stories
-            enableSongSuggestion, // This might be wrong, if enableSongSuggestion is a boolean, it's not a google search flag. Revert to false if not directly related to a Gemini API config param.
+            false, // enableSongSuggestion is not a Google Search flag, so revert to false
             selectedStoryVoice
           );
 
@@ -719,14 +721,21 @@ const App: React.FC = () => {
         {renderFeatureInput()}
       </div>
 
-      {/* Footer for Privacy Policy */}
-      <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200">
+      {/* Footer for Privacy Policy and Terms of Service */}
+      <div className="p-2 bg-gray-100 text-center text-xs text-gray-500 border-t border-gray-200 flex justify-center space-x-4">
         <button
           onClick={() => setShowPrivacyPolicy(true)}
           className="text-blue-600 hover:underline"
           aria-label="Open Privacy Policy"
         >
           Privacy Policy
+        </button>
+        <button
+          onClick={() => setShowTermsOfService(true)} // New button for Terms of Service
+          className="text-blue-600 hover:underline"
+          aria-label="Open Terms of Service"
+        >
+          Terms of Service
         </button>
       </div>
 
@@ -739,6 +748,18 @@ const App: React.FC = () => {
           aria-labelledby="privacy-policy-title"
         >
           <PrivacyPolicy onClose={() => setShowPrivacyPolicy(false)} />
+        </div>
+      )}
+
+      {/* Terms of Service Modal */}
+      {showTermsOfService && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-of-service-title"
+        >
+          <TermsOfService onClose={() => setShowTermsOfService(false)} />
         </div>
       )}
     </div>
