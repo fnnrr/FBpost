@@ -78,13 +78,17 @@ const App: React.FC = () => {
   // Handle URL parameters for displaying modals on initial load
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('show') === 'privacy') {
+    const path = window.location.pathname;
+
+    // Check both query parameters and clean paths
+    if (params.get('show') === 'privacy' || path === '/privacy-policy') {
       setShowPrivacyPolicy(true);
-    } else if (params.get('show') === 'terms') {
+    } else if (params.get('show') === 'terms' || path === '/terms-of-service') {
       setShowTermsOfService(true);
     }
-    // Optionally clear the URL parameter after showing the modal to keep URL clean
-    // This is a UX choice. If you want the URL to persist for sharing, skip this.
+
+    // Optionally clear the URL parameter if it was set by an internal link click
+    // This helps keep the URL clean after the modal is shown, but retains clean paths.
     if (window.location.search.includes('?show=')) {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
@@ -236,7 +240,7 @@ const App: React.FC = () => {
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             storyPrompt,
             false, // No Google Search for stories
-            false, // enableSongSuggestion is not a Google Search flag, so revert to false
+            enableStoryTTS, // Pass enableStoryTTS to generateTextContent
             selectedStoryVoice
           );
 
