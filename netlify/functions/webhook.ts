@@ -149,18 +149,27 @@ const handler: Handler = async (event, context: HandlerContext) => {
             if (messageText) {
                 const lowerCaseText = messageText.toLowerCase();
 
-                if (lowerCaseText.startsWith('daily post')) {
-                  // Example: "daily post inspirational story_reel" or "daily post funny regular_post"
-                  const parts = lowerCaseText.split(' ');
-                  const themePart = parts[2];
-                  const typePart = parts[3];
+                if (lowerCaseText.includes('post') && (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('daily post') || lowerCaseText.includes('generate post'))) {
+                  // This block handles various daily post requests like "Post sad story", "daily post funny", "generate a reel"
+                  let theme: DailyPostTheme = 'inspirational'; // Default
+                  let type: DailyPostType = 'story_reel'; // Default for social media stories/reels
 
-                  const theme: DailyPostTheme = (['inspirational', 'sad', 'storytelling', 'funny'] as DailyPostTheme[]).includes(themePart as DailyPostTheme)
-                    ? (themePart as DailyPostTheme)
-                    : 'inspirational'; // Default
-                  const type: DailyPostType = (['story_reel', 'regular_post'] as DailyPostType[]).includes(typePart as DailyPostType)
-                    ? (typePart as DailyPostType)
-                    : 'story_reel'; // Default
+                  // Try to extract theme
+                  const themes: DailyPostTheme[] = ['inspirational', 'sad', 'storytelling', 'funny'];
+                  for (const t of themes) {
+                    if (lowerCaseText.includes(t)) {
+                      theme = t;
+                      break;
+                    }
+                  }
+
+                  // Try to extract post type
+                  if (lowerCaseText.includes('regular post') || lowerCaseText.includes('detailed post') || lowerCaseText.includes('long post')) {
+                    type = 'regular_post';
+                  } else if (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('short post') || lowerCaseText.includes('daily post')) {
+                    type = 'story_reel';
+                  }
+                  // If type is not explicitly mentioned, and it's just "post [theme]", default to story_reel.
 
                   let prompt = '';
                   if (type === 'story_reel') {
@@ -228,12 +237,16 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   // and possibly user input for time. For now, it's a placeholder.
                   botResponseText = "Scheduling posts is not fully implemented in the backend yet. You can use the frontend app to simulate scheduling. In the future, I will be able to schedule posts to your social media.";
                 } else {
-                  // Default chat response using Gemini
+                  // Default chat response using Gemini. Also provide guidance.
+                  const guidance = `\n\nI can:
+  - Generate a post/story/reel: Try "Post [theme] story" (e.g., "Post sad story"), "Generate a funny regular post", or "daily post inspirational reel".
+  - Edit an image: Type "Edit this image: [your prompt]" and attach an image.`;
+
                   const geminiResponse = await ai.models.generateContent({
                       model: GEMINI_FLASH_MODEL,
-                      contents: `The user said: "${messageText}". Respond in the style of a helpful social media assistant, suggesting creative post or story ideas, or offering to help with image/video generation based on their query.`,
+                      contents: `The user said: "${messageText}". Respond in the style of a helpful social media assistant, suggesting creative post or story ideas, or offering to help with image/video generation based on their query. Keep your response concise, as I will append some usage instructions.`,
                   });
-                  botResponseText = geminiResponse.text || botResponseText;
+                  botResponseText = (geminiResponse.text || 'How can I assist you?') + guidance;
                 }
             } else if (messageAttachments && messageAttachments.length > 0) {
               // Generic handling for attachments without a specific command
