@@ -24,6 +24,7 @@ export enum BotFeature {
   DAILY_POST = 'daily_post',
   SCHEDULE_POST = 'schedule_post', // New feature for scheduling posts
   CREATE_STORY = 'create_story', // New feature for creating stories
+  DATA_MANAGEMENT = 'data_management', // New feature for user data deletion
 }
 
 // export type ImageSize = '1K' | '2K' | '4K'; // Removed for free API only

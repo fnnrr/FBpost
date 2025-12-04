@@ -99,10 +99,32 @@ const App: React.FC = () => {
     setMessages((prevMessages) => [...prevMessages, message]);
   }, []);
 
+  const handleClearLocalScheduledPosts = useCallback(() => {
+    if (window.confirm('Are you sure you want to clear ALL locally stored scheduled posts? This action cannot be undone.')) {
+      try {
+        localStorage.removeItem('scheduledPosts');
+        setScheduledPosts([]); // Clear state immediately
+        addMessage({
+          id: uuidv4(),
+          role: 'bot',
+          content: 'All local scheduled posts have been cleared from your browser.',
+        });
+      } catch (error: any) {
+        addMessage({
+          id: uuidv4(),
+          role: 'bot',
+          content: 'Failed to clear local scheduled posts.',
+          error: error.message || 'Unknown error',
+        });
+      }
+    }
+  }, [addMessage]);
+
+
   const handleSendMessage = useCallback(async () => {
     if (isLoading || isPosting) return; // Prevent multiple requests or interactions during loading/posting
 
-    if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.SCHEDULE_POST && currentFeature !== BotFeature.CREATE_STORY && !input.trim()) return;
+    if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.SCHEDULE_POST && currentFeature !== BotFeature.CREATE_STORY && currentFeature !== BotFeature.DATA_MANAGEMENT && !input.trim()) return;
 
     // Handle scheduling separately, as it doesn't involve sending input to Gemini
     if (currentFeature === BotFeature.SCHEDULE_POST) {
@@ -165,6 +187,13 @@ const App: React.FC = () => {
       }
       return; // Exit here as scheduling is handled
     }
+
+    if (currentFeature === BotFeature.DATA_MANAGEMENT) {
+        // Data Management actions are handled by specific buttons, not the generic send button.
+        // This case should ideally not be reached if buttons are disabled correctly.
+        return;
+    }
+
 
     const userMessage: Message = { id: uuidv4(), role: 'user', content: input };
     if (currentFeature !== BotFeature.DAILY_POST && currentFeature !== BotFeature.CREATE_STORY) {
@@ -651,6 +680,35 @@ const App: React.FC = () => {
               ) : (
                 <p className="text-sm text-gray-600">No posts scheduled yet.</p>
               )}
+            </div>
+          </div>
+        );
+      case BotFeature.DATA_MANAGEMENT:
+        return (
+          <div className="flex flex-col gap-4 p-4 bg-gray-50 rounded-md">
+            <h3 className="text-lg font-semibold text-gray-800">Manage Your Data</h3>
+
+            <div className="flex flex-col gap-2">
+              <p className="text-base font-medium text-gray-700">Local Data (Scheduled Posts):</p>
+              <p className="text-sm text-gray-600">
+                The "Schedule Post" feature stores your scheduled content previews directly in your browser's local storage. This data is not sent to our servers.
+              </p>
+              <button
+                onClick={handleClearLocalScheduledPosts}
+                className="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
+                disabled={isLoading || isPosting}
+                aria-label="Clear all local scheduled posts"
+              >
+                Clear Local Scheduled Posts
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-4">
+              <p className="text-base font-medium text-gray-700">Facebook Messenger Data:</p>
+              <p className="text-sm text-gray-600">
+                When you interact with the bot via Facebook Messenger, your messages and associated IDs are stored on our server (MongoDB) to enable bot functionality.
+                To request deletion of this data, please refer to our <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Privacy Policy</a> (Section "Your Rights") for detailed instructions on how to initiate a data deletion request through Facebook.
+              </p>
             </div>
           </div>
         );

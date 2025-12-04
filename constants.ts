@@ -49,6 +49,12 @@ export const BOT_FEATURES = [
     description: 'Generate a creative story with optional voice and song suggestions.',
     icon: '📝',
   },
+  {
+    id: BotFeature.DATA_MANAGEMENT,
+    name: 'Data Mgmt',
+    description: 'Manage your local data or learn how to delete Messenger data.',
+    icon: '🗑️',
+  },
 ];
 
 export const DAILY_POST_THEMES = [
@@ -72,3 +78,4 @@ export const TTS_VOICES = [
 ];
 
 export const BILLING_DOCS_URL = 'ai.google.dev/gemini-api/docs/billing';
+export const FB_APP_SECRET = process.env.FB_APP_SECRET; // New: Facebook App Secret for webhook verification
