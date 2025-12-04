@@ -1,4 +1,4 @@
-import { BotFeature, PrebuiltVoice } from './types';
+import { BotFeature, PrebuiltVoice } from './types.ts';
 
 export const GEMINI_FLASH_MODEL = 'gemini-2.5-flash';
 // export const GEMINI_PRO_IMAGE_MODEL = 'gemini-3-pro-image-preview'; // Removed for free API only

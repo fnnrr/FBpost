@@ -1,6 +1,6 @@
 import React from 'react';
-import { Message } from '../types';
-import VideoPlayer from './VideoPlayer';
+import { Message } from '../types.ts';
+import VideoPlayer from './VideoPlayer.tsx';
 
 interface MessageBubbleProps {
   message: Message;

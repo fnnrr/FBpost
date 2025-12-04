@@ -1,18 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import MessageBubble from './components/MessageBubble';
-import ImageUpload from './components/ImageUpload';
-import ThemeSelector from './components/ThemeSelector';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import TermsOfService from './components/TermsOfService';
+import MessageBubble from './components/MessageBubble.tsx';
+import ImageUpload from './components/ImageUpload.tsx';
+import ThemeSelector from './components/ThemeSelector.tsx';
+import PrivacyPolicy from './components/PrivacyPolicy.tsx';
+import TermsOfService from './components/TermsOfService.tsx';
 import {
   generateTextContent,
   // generateImage, // Removed for free API only
   editImage,
   // generateVideo, // Removed for free API only
-} from './services/geminiService';
-import { Message, BotFeature, /* ImageSize, VideoAspectRatio, */ DailyPostTheme, DailyPostType, ScheduledPost, PrebuiltVoice } from './types';
-import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES, TTS_VOICES } from './constants';
+} from './services/geminiService.ts';
+import { Message, BotFeature, /* ImageSize, VideoAspectRatio, */ DailyPostTheme, DailyPostType, ScheduledPost, PrebuiltVoice } from './types.ts';
+import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES, TTS_VOICES } from './constants.ts';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -655,35 +655,6 @@ const App: React.FC = () => {
               ) : (
                 <p className="text-sm text-gray-600">No posts scheduled yet.</p>
               )}
-            </div>
-          </div>
-        );
-      case BotFeature.DATA_MANAGEMENT:
-        return (
-          <div className="flex flex-col gap-4 p-4 bg-gray-50 rounded-md">
-            <h3 className="text-lg font-semibold text-gray-800">Manage Your Data</h3>
-
-            <div className="flex flex-col gap-2">
-              <p className="text-base font-medium text-gray-700">Local Data (Scheduled Posts):</p>
-              <p className="text-sm text-gray-600">
-                The "Schedule Post" feature stores your scheduled content previews directly in your browser's local storage. This data is not sent to our servers.
-              </p>
-              <button
-                onClick={handleClearLocalScheduledPosts}
-                className="bg-red-600 text-white p-2 rounded-md hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
-                disabled={isLoading || isPosting || isPublishingToFacebook}
-                aria-label="Clear all local scheduled posts"
-              >
-                Clear Local Scheduled Posts
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-2 mt-4">
-              <p className="text-base font-medium text-gray-700">Facebook Messenger Data:</p>
-              <p className="text-sm text-gray-600">
-                When you interact with the bot via Facebook Messenger, your messages and associated IDs are stored on our server (MongoDB) to enable bot functionality.
-                To request deletion of this data, please refer to our <a href="/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">Privacy Policy</a> (Section "Your Rights") for detailed instructions on how to initiate a data deletion request through Facebook.
-              </p>
             </div>
           </div>
         );

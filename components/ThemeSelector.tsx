@@ -1,6 +1,6 @@
 import React from 'react';
-import { DailyPostTheme } from '../types';
-import { DAILY_POST_THEMES } from '../constants';
+import { DailyPostTheme } from '../types.ts';
+import { DAILY_POST_THEMES } from '../constants.ts';
 
 interface ThemeSelectorProps {
   selectedTheme: DailyPostTheme;

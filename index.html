@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini Reels & Stories Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script>
       // Polyfill process for browser environments to prevent ReferenceError
       if (typeof process === "undefined") {
@@ -14,13 +15,15 @@
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
-    "react": "https://aistudiocdn.com/react@^19.2.1",
+    "react": "https://aistudiocdn.com/react@18.3.1",
+    "react/": "https://aistudiocdn.com/react@18.3.1/",
+    "react-dom": "https://aistudiocdn.com/react-dom@18.3.1",
+    "react-dom/": "https://aistudiocdn.com/react-dom@18.3.1/",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@18.3.1/client",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.31.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
-    "uuid": "https://aistudiocdn.com/uuid@^13.0.0",
-    "mongodb": "https://aistudiocdn.com/mongodb@^7.0.0",
-    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^5.1.0",
+    "uuid": "https://aistudiocdn.com/uuid@^9.0.0",
+    "mongodb": "https://aistudiocdn.com/mongodb@^6.8.0",
+    "@netlify/functions": "https://aistudiocdn.com/@netlify/functions@^2.6.0",
     "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
     "form-data": "https://aistudiocdn.com/form-data@^4.0.0",
     "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
@@ -30,6 +33,6 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="text/babel" data-type="module" data-presets="react,typescript" src="./index.tsx"></script>
 </body>
 </html>
