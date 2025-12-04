@@ -7,15 +7,9 @@ import {
 } from '../../constants';
 import { GroundingUrl, PrebuiltVoice } from '../../types';
 
-// Utility function to decode base64 to Uint8Array for audio (copied from services/geminiService.ts)
+// Utility function to decode base64 to Uint8Array using Node.js Buffer
 function decodeBase64(base64: string): Uint8Array {
-  const binaryString = atob(base64);
-  const len = binaryString.length;
-  const bytes = new Uint8Array(len);
-  for (let i = 0; i < len; i++) {
-    bytes[i] = binaryString.charCodeAt(i);
-  }
-  return bytes;
+  return Buffer.from(base64, 'base64');
 }
 
 // Helper to write string to DataView for WAV header (copied from services/geminiService.ts)
@@ -150,12 +144,8 @@ const handler: Handler = async (event, context: HandlerContext) => {
             fullWavBytes.set(wavHeader, 0);
             fullWavBytes.set(rawPcmBytes, wavHeader.length);
 
-            let binary = '';
-            const len = fullWavBytes.byteLength;
-            for (let i = 0; i < len; i++) {
-              binary += String.fromCharCode(fullWavBytes[i]);
-            }
-            audioUrl = `data:audio/wav;base64,${btoa(binary)}`;
+            // Encode the full WAV bytes to base64 using Node.js Buffer
+            audioUrl = `data:audio/wav;base64,${Buffer.from(fullWavBytes).toString('base64')}`;
           } else {
             console.warn('GeminiProxy: No audio data received from TTS model.');
           }

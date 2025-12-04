@@ -32,10 +32,21 @@ export const generateTextContent = async (
       }),
     });
 
+    if (!response.ok) {
+      const errorBody = await response.text(); // Read raw text for better debugging
+      console.error('GeminiProxy textGeneration failed with status:', response.status, 'Response:', errorBody);
+      try {
+        const errorJson = JSON.parse(errorBody);
+        throw new Error(errorJson.error || `Server responded with status ${response.status} and unexpected format.`);
+      } catch (parseError) {
+        throw new Error(`Server responded with status ${response.status} and non-JSON: ${errorBody.substring(0, 200)}...`);
+      }
+    }
+
     const result = await response.json();
 
-    if (!response.ok || result.error) {
-      throw new Error(result.error || 'Failed to get text content from Gemini proxy.');
+    if (result.error) {
+      throw new Error(result.error);
     }
 
     return {
@@ -65,10 +76,21 @@ export const editImage = async (imageFile: File, prompt: string): Promise<string
       }),
     });
 
+    if (!response.ok) {
+      const errorBody = await response.text(); // Read raw text for better debugging
+      console.error('GeminiProxy imageEdit failed with status:', response.status, 'Response:', errorBody);
+      try {
+        const errorJson = JSON.parse(errorBody);
+        throw new Error(errorJson.error || `Server responded with status ${response.status} and unexpected format.`);
+      } catch (parseError) {
+        throw new Error(`Server responded with status ${response.status} and non-JSON: ${errorBody.substring(0, 200)}...`);
+      }
+    }
+
     const result = await response.json();
 
-    if (!response.ok || result.error) {
-      throw new Error(result.error || 'Failed to edit image from Gemini proxy.');
+    if (result.error) {
+      throw new Error(result.error);
     }
 
     return result.imageUrl;
