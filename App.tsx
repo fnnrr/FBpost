@@ -30,7 +30,7 @@ const App: React.FC = () => {
   const [selectedDailyPostVoice, setSelectedDailyPostVoice] = useState<PrebuiltVoice>(PrebuiltVoice.ZEPHYR);
 
   const [storyTheme, setStoryTheme] = useState<DailyPostTheme>('inspirational');
-  const [enableStoryTTS, setEnableStoryTTS] = useState<boolean>(false);
+  // enableStoryTTS removed as it is now always on for Stories
   const [selectedStoryVoice, setSelectedStoryVoice] = useState<PrebuiltVoice>(PrebuiltVoice.ZEPHYR);
   const [enableSongSuggestion, setEnableSongSuggestion] = useState<boolean>(false);
 
@@ -305,12 +305,8 @@ const App: React.FC = () => {
           break;
         }
         case BotFeature.CREATE_STORY: {
-          let storyLengthInstruction = '';
-          if (enableStoryTTS) {
-            storyLengthInstruction = "Keep the story engaging and detailed, around 200-300 words for a voice narration.";
-          } else {
-            storyLengthInstruction = "Keep the story concise, vivid, and rich, around 50-100 words.";
-          }
+          // Logic updated to always include Image and TTS
+          let storyLengthInstruction = "Keep the story engaging and detailed, around 200-300 words for a voice narration.";
 
           let storyPrompt = `Generate a creative and engaging story with a ${storyTheme} theme. ${storyLengthInstruction}`;
           if (input.trim()) {
@@ -319,15 +315,19 @@ const App: React.FC = () => {
           if (enableSongSuggestion) {
             storyPrompt += ` Also, suggest one song title and artist that would fit the mood of this story. Format the song suggestion clearly as: "Song Suggestion: [Song Title] by [Artist Name]".`;
           }
-          addMessage({ id: uuidv4(), role: 'bot', content: `Creating a ${storyTheme} story for you ${enableStoryTTS ? '(with voice and a longer narrative)' : '(concise and rich)'}...` });
+          addMessage({ id: uuidv4(), role: 'bot', content: `Creating a ${storyTheme} story for you (Text, Audio, & Visual)...` });
 
+          // 1. Generate Text & Audio (Always Force TTS to true)
           const { text, groundingUrls, audioUrl } = await generateTextContent(
             storyPrompt,
             false,
-            enableStoryTTS,
+            true, // Always generate Audio
             selectedStoryVoice
           );
 
+          // 2. Generate Image
+          addMessage({ id: uuidv4(), role: 'bot', content: `...Story generated. Creating a matching vertical image...` });
+          
           let storyText = text || 'Could not generate story.';
           let songSuggestion = '';
           const songRegex = /Song Suggestion: (.+)/i;
@@ -337,12 +337,22 @@ const App: React.FC = () => {
             storyText = storyText.replace(songRegex, '').trim();
           }
 
+          const imagePrompt = `A vertical 9:16 aspect ratio social media story background image. Theme: ${storyTheme}. Context: ${storyText.substring(0, 100)}. High quality, moody, atmospheric art.`;
+          const generatedImageUrl = await generateImageFromText(imagePrompt);
+
           let finalContent = `Story (${storyTheme}):\n\n${storyText}`;
           if (songSuggestion) {
             finalContent += `\n\n🎵 ${songSuggestion} (For inspiration, not playable audio)`;
           }
 
-          generatedContentMessage = { id: uuidv4(), role: 'bot', content: finalContent, groundingUrls, audioUrl };
+          generatedContentMessage = { 
+            id: uuidv4(), 
+            role: 'bot', 
+            content: finalContent, 
+            groundingUrls, 
+            audioUrl,
+            imageUrl: generatedImageUrl // Include the generated image
+          };
           break;
         }
       }
@@ -375,7 +385,7 @@ const App: React.FC = () => {
         setInput('');
       }
     }
-  }, [input, isLoading, isPosting, currentFeature, selectedImage, dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, enableStoryTTS, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage, isPublishingToFacebook]);
+  }, [input, isLoading, isPosting, currentFeature, selectedImage, dailyPostTheme, dailyPostType, enableDailyPostTTS, selectedDailyPostVoice, storyTheme, selectedStoryVoice, enableSongSuggestion, selectedMessageToSchedule, scheduledDateTime, messages, addMessage, isPublishingToFacebook]);
 
   const handleClearImage = useCallback(() => {
     setSelectedImage(null);
@@ -497,20 +507,8 @@ const App: React.FC = () => {
             <ThemeSelector selectedTheme={storyTheme} onThemeChange={setStoryTheme} isLoading={isLoading || isPosting || isPublishingToFacebook} />
 
             <div className="flex flex-col gap-2 mt-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="enable-story-tts"
-                  checked={enableStoryTTS}
-                  onChange={(e) => setEnableStoryTTS(e.target.checked)}
-                  disabled={isLoading || isPosting || isPublishingToFacebook}
-                  className="mr-1"
-                />
-                <label htmlFor="enable-story-tts" className="text-gray-700 font-medium">Enable Text-to-Speech</label>
-              </div>
-              {enableStoryTTS && (
-                <div className="flex items-center gap-2 pl-4">
-                  <label htmlFor="story-voice-select" className="text-gray-700 text-sm">Voice:</label>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="story-voice-select" className="text-gray-700 font-medium text-sm">Voice (TTS):</label>
                   <select
                     id="story-voice-select"
                     value={selectedStoryVoice}
@@ -525,7 +523,6 @@ const App: React.FC = () => {
                     ))}
                   </select>
                 </div>
-              )}
             </div>
 
             <div className="flex items-center gap-2 mt-2">
@@ -552,7 +549,7 @@ const App: React.FC = () => {
             />
 
             <p className="text-sm text-gray-600">
-              Click below to generate a new story based on the selected theme, optional voice, and song suggestion.
+              Click below to generate a new story (Image + Audio + Text) based on the selected theme.
             </p>
             <button
               onClick={handleSendMessage}
