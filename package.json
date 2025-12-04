@@ -5,7 +5,7 @@
   "main": "index.tsx",
   "scripts": {
     "start": "echo 'No dedicated start script for this simple setup. Serve index.html directly.'",
-    "build": "npm run build:functions && mkdir -p dist && cp index.html dist/ && cp metadata.json dist/ && cp -r * dist/ 2>/dev/null || :",
+    "build": "npm run build:functions && mkdir -p dist && cp index.html metadata.json dist/ && cp -r components services netlify types.ts constants.ts App.tsx index.tsx dist/ 2>/dev/null || :",
     "build:functions": "tsc --project ./tsconfig.json"
   },
   "dependencies": {

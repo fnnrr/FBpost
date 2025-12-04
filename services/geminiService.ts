@@ -2,7 +2,9 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { GroundingUrl, PrebuiltVoice } from '../types';
 import { GEMINI_FLASH_MODEL, GEMINI_FLASH_IMAGE_MODEL, GEMINI_FLASH_TTS_MODEL } from '../constants';
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safely retrieve API key to prevent crash if process is undefined
+const apiKey = (typeof process !== 'undefined' && process.env) ? process.env.API_KEY : '';
+const ai = new GoogleGenAI({ apiKey });
 
 // Utility function to convert File to base64
 async function fileToBase64(file: File): Promise<string> {
