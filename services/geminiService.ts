@@ -164,3 +164,30 @@ export const editImage = async (imageFile: File, prompt: string): Promise<string
     throw new Error(`Failed to edit image: ${error.message || 'Unknown error'}`);
   }
 };
+
+export const generateImageFromText = async (prompt: string): Promise<string> => {
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_FLASH_IMAGE_MODEL,
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "9:16", // Vertical for Reels/Stories
+        }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData?.data && part.inlineData.mimeType) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+    }
+
+    throw new Error('No image generated.');
+  } catch (error: any) {
+    console.error('Error generating image:', error);
+    throw new Error(`Failed to generate image: ${error.message || 'Unknown error'}`);
+  }
+};

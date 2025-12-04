@@ -8,6 +8,7 @@ import TermsOfService from './components/TermsOfService';
 import {
   generateTextContent,
   editImage,
+  generateImageFromText,
 } from './services/geminiService';
 import { Message, BotFeature, DailyPostTheme, DailyPostType, ScheduledPost, PrebuiltVoice } from './types';
 import { BOT_FEATURES, DAILY_POST_THEMES, DAILY_POST_TYPES, TTS_VOICES } from './constants';
@@ -260,30 +261,47 @@ const App: React.FC = () => {
           break;
         }
         case BotFeature.DAILY_POST: {
-          let prompt = '';
-          let initialBotMessage = `Generating your `;
           if (dailyPostType === 'story_reel') {
-            prompt = `Generate a short ${dailyPostTheme} themed story or inspirational message suitable for a social media reel/story. Keep it concise, around 100-150 words.`;
-            initialBotMessage += `short & engaging `;
-          } else { 
-            prompt = `Generate a detailed ${dailyPostTheme} themed story or message suitable for a regular social media post. Make it engaging and provide a clear narrative or insightful reflection, around 200-300 words.`;
-            initialBotMessage += `detailed `;
-          }
-          initialBotMessage += `Daily Post (${dailyPostTheme} - ${dailyPostType.replace('_', ' ')})`;
-          if (enableDailyPostTTS) {
-            initialBotMessage += ` (with voice)`;
-          }
-          initialBotMessage += `...`;
+             // --- Story/Reel Flow (Image + TTS) ---
+             addMessage({ id: uuidv4(), role: 'bot', content: `Generating your ${dailyPostTheme} Reel/Story... (Creating text, voice, and visuals)` });
 
-          addMessage({ id: uuidv4(), role: 'bot', content: initialBotMessage });
+             // 1. Generate Text & Audio
+             const prompt = `Generate a short ${dailyPostTheme} themed story or inspirational message suitable for a vertical social media reel/story. Keep it concise, around 100-150 words.`;
+             const { text, groundingUrls, audioUrl } = await generateTextContent(
+              prompt,
+              false,
+              true, // Force TTS on for Reels
+              selectedDailyPostVoice
+            );
 
-          const { text, groundingUrls, audioUrl } = await generateTextContent(
-            prompt,
-            false,
-            enableDailyPostTTS,
-            selectedDailyPostVoice
-          );
-          generatedContentMessage = { id: uuidv4(), role: 'bot', content: `Daily Post (${dailyPostTheme} - ${dailyPostType.replace('_', ' ')}):\n\n${text}`, groundingUrls, audioUrl };
+            // 2. Generate Image based on the story text
+            addMessage({ id: uuidv4(), role: 'bot', content: `...Writing complete. Now generating a vertical visual for your story...` });
+            
+            const imagePrompt = `A vertical 9:16 aspect ratio social media story background image. The theme is ${dailyPostTheme}. The scene description is: ${text.substring(0, 150)}. High quality, photorealistic or stylized art.`;
+            const generatedImageUrl = await generateImageFromText(imagePrompt);
+
+            generatedContentMessage = { 
+              id: uuidv4(), 
+              role: 'bot', 
+              content: `Reel Generated (${dailyPostTheme}):\n\n${text}`, 
+              groundingUrls, 
+              audioUrl,
+              imageUrl: generatedImageUrl 
+            };
+
+          } else {
+            // --- Regular Post Flow (Text + Optional TTS) ---
+            let prompt = `Generate a detailed ${dailyPostTheme} themed story or message suitable for a regular social media post. Make it engaging and provide a clear narrative or insightful reflection, around 200-300 words.`;
+            addMessage({ id: uuidv4(), role: 'bot', content: `Generating your detailed Daily Post (${dailyPostTheme})...` });
+
+            const { text, groundingUrls, audioUrl } = await generateTextContent(
+              prompt,
+              false,
+              enableDailyPostTTS,
+              selectedDailyPostVoice
+            );
+            generatedContentMessage = { id: uuidv4(), role: 'bot', content: `Daily Post (${dailyPostTheme}):\n\n${text}`, groundingUrls, audioUrl };
+          }
           break;
         }
         case BotFeature.CREATE_STORY: {
@@ -430,12 +448,14 @@ const App: React.FC = () => {
                   id="enable-tts"
                   checked={enableDailyPostTTS}
                   onChange={(e) => setEnableDailyPostTTS(e.target.checked)}
-                  disabled={isLoading || isPosting || isPublishingToFacebook}
+                  disabled={isLoading || isPosting || isPublishingToFacebook || dailyPostType === 'story_reel'} 
                   className="mr-1"
                 />
-                <label htmlFor="enable-tts" className="text-gray-700 font-medium">Enable Text-to-Speech</label>
+                <label htmlFor="enable-tts" className="text-gray-700 font-medium">
+                   {dailyPostType === 'story_reel' ? 'Enable Text-to-Speech (Always On for Reels)' : 'Enable Text-to-Speech'}
+                </label>
               </div>
-              {enableDailyPostTTS && (
+              {(enableDailyPostTTS || dailyPostType === 'story_reel') && (
                 <div className="flex items-center gap-2 pl-4">
                   <label htmlFor="voice-select" className="text-gray-700 text-sm">Voice:</label>
                   <select
