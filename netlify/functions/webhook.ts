@@ -1,8 +1,8 @@
 import { Handler, Context, HandlerContext } from '@netlify/functions';
 import { MongoClient, Db } from 'mongodb'; // Import MongoClient and Db types
-import { GoogleGenAI } from '@google/genai';
-import { GEMINI_FLASH_MODEL, GEMINI_FLASH_IMAGE_MODEL } from '../../constants'; // Use constants for model names
-import { DailyPostTheme, DailyPostType, BotFeature } from '../../types'; // Import types for Daily Post and BotFeature
+import { GoogleGenAI, Modality } from '@google/genai'; // Added Modality
+import { GEMINI_FLASH_MODEL, GEMINI_FLASH_IMAGE_MODEL, GEMINI_FLASH_TTS_MODEL } from '../../constants'; // Use constants for model names
+import { DailyPostTheme, DailyPostType, BotFeature, PrebuiltVoice } from '../../types'; // Import types for Daily Post and BotFeature, PrebuiltVoice
 
 // Environment variables to be set in Netlify dashboard (Site settings -> Build & deploy -> Environment variables):
 // MONGODB_URI: Your MongoDB connection string (e.g., from MongoDB Atlas)
@@ -157,6 +157,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
             // --- Core Bot Logic: Integrate Gemini and determine response ---
             let botResponseText = 'Oops! I received your message but could not process it.';
             let botImageUrl: string | undefined;
+            let botAudioUrl: string | undefined; // Added for audio
             // let botVideoUrl: string | undefined; // Video generation is not currently enabled in frontend or backend
             let sendQuickReplies = false;
 
@@ -164,11 +165,20 @@ const handler: Handler = async (event, context: HandlerContext) => {
                 const lowerCaseText = messageText.toLowerCase();
                 console.log(`User message text: "${messageText}"`);
 
-                if (lowerCaseText.includes('post') && (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('daily post') || lowerCaseText.includes('generate post'))) {
+                // --- NEW: Handle "Post Now" intent ---
+                if (lowerCaseText.includes('post now') || lowerCaseText.includes('publish this') || lowerCaseText.includes('share this') || lowerCaseText.includes('upload this') || lowerCaseText.includes('make it live')) {
+                  console.log('Detected "Post Now" intent.');
+                  botResponseText = `I understand you want to post this directly! However, as a Messenger bot, I'm designed to help you *create* content, not publish it directly to social media platforms like Facebook or Instagram. This is due to platform security and API limitations.
+                  \n\nI can generate text, images, or audio for you. Once I send it, you can easily copy and paste it into your desired social media app. If you're using the full web app in your browser, you can also manage generated content with its local 'Schedule Post' feature.
+                  \n\nHow can I help you generate something creative today?`;
+                  sendQuickReplies = true; // Always offer quick replies after this explanation
+                } else if (lowerCaseText.includes('post') && (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('daily post') || lowerCaseText.includes('generate post'))) {
                   console.log('Detected Daily Post command.');
                   // This block handles various daily post requests like "Post sad story", "daily post funny", "generate a reel"
                   let theme: DailyPostTheme = 'inspirational'; // Default
                   let type: DailyPostType = 'story_reel'; // Default for social media stories/reels
+                  let enableTTS: boolean = false;
+                  let selectedVoice: PrebuiltVoice = PrebuiltVoice.ZEPHYR; // Default voice
 
                   // Try to extract theme
                   const themes: DailyPostTheme[] = ['inspirational', 'sad', 'storytelling', 'funny'];
@@ -185,7 +195,16 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   } else if (lowerCaseText.includes('story') || lowerCaseText.includes('reel') || lowerCaseText.includes('short post') || lowerCaseText.includes('daily post')) {
                     type = 'story_reel';
                   }
-                  // If type is not explicitly mentioned, and it's just "post [theme]", default to story_reel.
+
+                  // Check for TTS request
+                  if (lowerCaseText.includes('with voice') || lowerCaseText.includes('read aloud')) {
+                    enableTTS = true;
+                    // Could also try to extract a specific voice here, but for simplicity, use default for Messenger
+                    // In a more advanced bot, you might have:
+                    // const voices: PrebuiltVoice[] = [PrebuiltVoice.KORE, PrebuiltVoice.PUCK, ...];
+                    // for (const v of voices) { if (lowerCaseText.includes(v.toLowerCase())) { selectedVoice = v; break; } }
+                  }
+
 
                   let prompt = '';
                   if (type === 'story_reel') {
@@ -193,15 +212,44 @@ const handler: Handler = async (event, context: HandlerContext) => {
                   } else { // regular_post
                     prompt = `Generate a detailed ${theme} themed story or message suitable for a regular social media post. Make it engaging and provide a clear narrative or insightful reflection, around 200-300 words.`;
                   }
-                  console.log(`Generated Gemini prompt for Daily Post: "${prompt}"`);
+                  console.log(`Generated Gemini prompt for Daily Post: "${prompt}" (TTS: ${enableTTS})`);
 
                   console.log('Calling Gemini API for text content...');
-                  const geminiResponse = await ai.models.generateContent({
+                  const textGenResponse = await ai.models.generateContent({
                     model: GEMINI_FLASH_MODEL,
                     contents: prompt,
                   });
-                  console.log('Gemini API returned text response.');
-                  botResponseText = `Daily Post (${theme} - ${type.replace('_', ' ')}):\n\n${geminiResponse.text || 'Could not generate post.'}`;
+                  textGenResponse.text; // Ensure text property is accessed
+
+                  botResponseText = `Daily Post (${theme} - ${type.replace('_', ' ')}):\n\n${textGenResponse.text || 'Could not generate post.'}`;
+
+                  if (enableTTS && textGenResponse.text) {
+                    console.log(`Generating speech for text: "${textGenResponse.text.substring(0, 50)}..." with voice: ${selectedVoice}`);
+                    try {
+                      const ttsResponse = await ai.models.generateContent({
+                        model: GEMINI_FLASH_TTS_MODEL,
+                        contents: [{ parts: [{ text: textGenResponse.text }] }],
+                        config: {
+                          responseModalities: [Modality.AUDIO],
+                          speechConfig: {
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: selectedVoice } },
+                          },
+                        },
+                      });
+
+                      const base64Audio = ttsResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+                      if (base64Audio) {
+                        botAudioUrl = `data:audio/wav;base64,${base64Audio}`; // This will be a data URI for raw PCM
+                        botResponseText += `\n\n(Note: Audio was generated with voice ${selectedVoice} but cannot be sent directly in Messenger. Please use the web app for the full experience.)`;
+                      } else {
+                        console.warn('No audio data received from TTS model for Messenger.');
+                        botResponseText += `\n\n(Note: Could not generate audio for this post.)`;
+                      }
+                    } catch (ttsError: any) {
+                      console.error('Error generating TTS for Messenger:', ttsError);
+                      botResponseText += `\n\n(Note: Failed to generate audio: ${ttsError.message || 'Unknown error'})`;
+                    }
+                  }
                   sendQuickReplies = true; // Offer quick replies after a feature interaction
 
                 } else if (lowerCaseText.startsWith('edit this image:') && messageAttachments?.length > 0) {
@@ -259,13 +307,13 @@ const handler: Handler = async (event, context: HandlerContext) => {
                 } else if (lowerCaseText.includes('schedule post') || lowerCaseText.includes(BotFeature.SCHEDULE_POST.replace('_', ' '))) {
                   console.log('Detected Schedule Post command in Messenger.');
                   botResponseText = "The 'Schedule Post' feature is managed in the web application (your browser). You can generate content here, then use the web app to schedule it! Feel free to ask me to 'Post inspirational story' or 'Edit this image' with an attachment.";
-                  sendQuickReplies = true; // Offer quick replies
+                  sendQuickReplies = true;
                 } else if (lowerCaseText === BotFeature.CHAT.replace('_', ' ')) {
                   // If user clicked 'Chat & Story' quick reply, just give a general prompt
                   botResponseText = "Okay, let's chat! What's on your mind or what kind of story would you like?";
                   sendQuickReplies = true;
                 } else if (lowerCaseText === BotFeature.DAILY_POST.replace('_', ' ')) {
-                  botResponseText = "What kind of daily post would you like? Try 'Post funny story' or 'Generate a sad regular post'.";
+                  botResponseText = "What kind of daily post would you like? Try 'Post funny story' or 'Generate a sad regular post with voice'.";
                   sendQuickReplies = true;
                 } else if (lowerCaseText === BotFeature.EDIT_IMAGE.replace('_', ' ')) {
                   botResponseText = "Please send me an image with your editing request, for example: 'Edit this image: add a hat'.";
@@ -295,14 +343,14 @@ const handler: Handler = async (event, context: HandlerContext) => {
 
             // --- Send Response back to Messenger ---
             console.log('Attempting to send Messenger reply...');
-            await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN, botImageUrl, undefined, sendQuickReplies); // Pass sendQuickReplies here
+            await sendMessengerMessage(senderId, botResponseText, FB_PAGE_ACCESS_TOKEN, botImageUrl, undefined, botAudioUrl, sendQuickReplies); // Pass sendQuickReplies and botAudioUrl here
             console.log('Messenger reply sent.');
 
           } catch (error: any) {
             console.error(`Error processing Messenger event for ${senderId} or interacting with DB/Gemini:`, error);
             // Attempt to send an error message back to the user
             try {
-                await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN, undefined, undefined, true); // Send quick replies even on error
+                await sendMessengerMessage(senderId, 'Apologies, I encountered an internal error while processing your request. Please try again later.', FB_PAGE_ACCESS_TOKEN, undefined, undefined, undefined, true); // Send quick replies even on error
             } catch (sendError) {
                 console.error('Failed to send error message back to user:', sendError);
             }
@@ -328,6 +376,7 @@ const handler: Handler = async (event, context: HandlerContext) => {
  * @param token The Facebook Page Access Token.
  * @param imageUrl Optional URL for an image attachment.
  * @param videoUrl Optional URL for a video attachment.
+ * @param audioUrl Optional URL for an audio attachment (data URI or public URL).
  * @param includeQuickReplies Whether to include Quick Replies in the response.
  */
 async function sendMessengerMessage(
@@ -336,6 +385,7 @@ async function sendMessengerMessage(
   token: string,
   imageUrl?: string,
   videoUrl?: string,
+  audioUrl?: string, // New parameter for audio
   includeQuickReplies: boolean = false
 ) {
   if (!token) {
@@ -372,6 +422,19 @@ async function sendMessengerMessage(
         attachment: {
           type: 'video',
           payload: { url: videoUrl, is_reusable: true }
+        }
+      };
+    }
+  } else if (audioUrl) { // New: Handle audio URL
+    // Messenger API requires a URL for audio attachments.
+    if (audioUrl.startsWith('data:')) {
+      console.warn('Cannot send data URI directly as Messenger audio attachment. Sending as text message with a note.');
+      messageContent.text = `${text}\n\n(Note: The generated audio could not be sent directly in Messenger as it's a data URI. Please use the web app for the full experience.)`;
+    } else {
+      messageContent = {
+        attachment: {
+          type: 'audio',
+          payload: { url: audioUrl, is_reusable: true }
         }
       };
     }

@@ -1,5 +1,5 @@
 {
   "name": "Gemini Reels & Stories Bot",
-  "description": "A Messenger-like bot powered by Gemini, capable of generating themed text, creating and editing images, and animating images into videos for social media stories and reels.",
+  "description": "A Messenger-like bot powered by Gemini, capable of generating themed text, creating and editing images, and generating creative stories with optional voice and song suggestions.",
   "requestFramePermissions": []
 }

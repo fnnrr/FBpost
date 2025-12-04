@@ -28,6 +28,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message }) => {
                 <VideoPlayer src={message.videoUrl} />
               </div>
             )}
+            {message.audioUrl && (
+              <audio controls src={message.audioUrl} className="mt-2 w-full"></audio>
+            )}
             {message.groundingUrls && message.groundingUrls.length > 0 && (
               <div className="mt-2 text-xs text-gray-600 dark:text-gray-300">
                 <p className="font-semibold">Sources:</p>
