@@ -123,14 +123,24 @@ const App: React.FC = () => {
         payload.imageUrl = message.imageUrl;
       }
       
-      const response = await fetch('/netlify/functions/publishToFacebookPage', {
+      // Note: Netlify Functions are served at /.netlify/functions/
+      const response = await fetch('/.netlify/functions/publishToFacebookPage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        throw new Error(`Server status ${response.status}`);
+        const errorText = await response.text();
+        let errorMessage = `Server status ${response.status}`;
+        try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error) errorMessage = errorJson.error;
+            else if (errorJson.message) errorMessage = errorJson.message;
+        } catch (e) {
+            errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -141,12 +151,12 @@ const App: React.FC = () => {
         throw new Error(result.error || 'Unknown error during Facebook publishing.');
       }
     } catch (error: any) {
-      console.warn('Backend publishing failed (this is expected in the preview environment):', error);
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.error('Publishing failed:', error);
       addMessage({ 
         id: uuidv4(), 
         role: 'bot', 
-        content: `(Simulation) Successfully published to Facebook Page!\n\nNote: In this preview environment, the backend connection is simulated. In a live deployment with valid credentials, this would post directly to your Page.` 
+        content: `Failed to publish to Facebook Page.`,
+        error: error.message || 'Unknown network error'
       });
     } finally {
       setIsPublishingToFacebook(false);
